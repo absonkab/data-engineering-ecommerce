@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Env
+.env
+venv/
+
+# Data
+data/
+
+# Logs
+*.log
+
+# Docker
+*.pid
+
+# IDE
+.vscode/
+.idea/

@@ -5,7 +5,7 @@ Centralise toute la configuration du projet.
 Pour éviter les valeurs hardcodées partout.
 """
 
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = "kafka:9092"
 TOPIC = "ecommerce_events"
 
 # Simulation config

@@ -1,4 +1,4 @@
-# ingestion/producer.py
+# ingestion/producer/producer.py
 
 """
 Gestion du producer Kafka.
@@ -8,7 +8,7 @@ Responsable de la connexion et de l'envoi des messages.
 import json
 import logging
 from kafka import KafkaProducer
-from config import KAFKA_BROKER
+from producer.config import KAFKA_BROKER
 
 
 # Configuration du logging (important en prod)

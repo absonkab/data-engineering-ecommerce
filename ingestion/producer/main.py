@@ -1,4 +1,4 @@
-# ingestion/main.py
+# ingestion/producer/main.py
 
 """
 Point d'entrée du producer Kafka.
@@ -8,9 +8,9 @@ Orchestre la génération + envoi des événements.
 import time
 import random
 import logging
-from config import TOPIC, MIN_DELAY, MAX_DELAY
-from generator import generate_event
-from producer import create_producer, send_event
+from producer.config import TOPIC, MIN_DELAY, MAX_DELAY
+from producer.generator import generate_event
+from producer.producer import create_producer, send_event
 
 logger = logging.getLogger(__name__)
 

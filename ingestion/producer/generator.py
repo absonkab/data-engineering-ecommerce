@@ -1,4 +1,4 @@
-# ingestion/generator.py
+# ingestion/producer/generator.py
 
 """
 Génération des événements e-commerce simulés.
@@ -8,7 +8,7 @@ Responsabilité unique : produire des données réalistes.
 import uuid
 import random
 from datetime import datetime
-from config import EVENT_TYPES
+from producer.config import EVENT_TYPES
 
 
 def generate_event():

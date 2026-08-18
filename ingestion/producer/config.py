@@ -1,4 +1,4 @@
-# ingestion/config.py
+# ingestion/producer/config.py
 
 """
 Centralise toute la configuration du projet.

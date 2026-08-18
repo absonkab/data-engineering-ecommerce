@@ -8,7 +8,7 @@ Responsable de la connexion et de l'envoi des messages.
 import json
 import logging
 from kafka import KafkaProducer
-from producer.config import KAFKA_BROKER
+from config.config import KAFKA_BROKER
 
 
 # Configuration du logging (important en prod)

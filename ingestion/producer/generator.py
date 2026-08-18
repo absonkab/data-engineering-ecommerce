@@ -8,7 +8,7 @@ Responsabilité unique : produire des données réalistes.
 import uuid
 import random
 from datetime import datetime
-from producer.config import EVENT_TYPES
+from config.config import EVENT_TYPES
 
 
 def generate_event():

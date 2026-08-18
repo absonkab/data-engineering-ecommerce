@@ -8,7 +8,7 @@ Orchestre la génération + envoi des événements.
 import time
 import random
 import logging
-from producer.config import TOPIC, MIN_DELAY, MAX_DELAY
+from config.config import KAFKA_TOPIC, MIN_DELAY, MAX_DELAY
 from producer.generator import generate_event
 from producer.producer import create_producer, send_event
 
@@ -27,7 +27,7 @@ def run():
             event = generate_event()
 
             # Envoyer à Kafka
-            send_event(producer, TOPIC, event)
+            send_event(producer, KAFKA_TOPIC, event)
 
             # Simuler un flux réaliste (pas constant)
             time.sleep(random.uniform(MIN_DELAY, MAX_DELAY))

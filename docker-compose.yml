@@ -41,7 +41,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
   ingestion:
-    build: ./ingestion
+    build:
+      context: .
+      dockerfile: ./ingestion/Dockerfile
     container_name: ingestion
     depends_on:
       - kafka

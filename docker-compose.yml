@@ -73,8 +73,8 @@ services:
 
   spark-job:
     build:
-      context: ./spark
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./spark/Dockerfile
     container_name: spark-job
     depends_on:
       - spark

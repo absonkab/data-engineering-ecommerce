@@ -13,7 +13,7 @@ ENV PYTHONPATH=/opt/spark
 
 USER root
 
-COPY requirements.txt /tmp/requirements.txt
+COPY spark/requirements.txt /tmp/requirements.txt
 
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
@@ -30,9 +30,10 @@ RUN mkdir -p /home/spark/.ivy2/cache \
 # Copie du code applicatif Spark.
 # ---------------------------------------------------------
 
-COPY jobs /opt/spark/jobs
-COPY schemas /opt/spark/schemas
-COPY utils /opt/spark/utils
+COPY spark/jobs /opt/spark/jobs
+COPY spark/schemas /opt/spark/schemas
+COPY spark/utils /opt/spark/utils
+COPY config /opt/spark/config
 
 # ---------------------------------------------------------
 # Le job Spark s'exécute avec l'utilisateur non-root

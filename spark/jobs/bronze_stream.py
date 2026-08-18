@@ -1,72 +1,95 @@
 """
 Premier job Spark Structured Streaming.
 
-Objectif :
-    Lire les événements provenant du topic Kafka
-    "ecommerce_events" et les afficher dans la console.
+Objectif : Transformer le JSON brut Kafka en données structurées et de les persister dans la Bronze layer
 
-Aucune transformation métier n'est effectuée à cette étape.
 """
 
-from pyspark.sql import functions as F
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    IntegerType,
+    DoubleType,
+    TimestampType
+)
+from pyspark.sql.functions import col, from_json
 
 from utils.spark_session import create_spark_session
+from config.config import KAFKA_BROKER, KAFKA_TOPIC
 
-
-# ---------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------
-
-KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
-KAFKA_TOPIC = "ecommerce_events"
-
-
-# ---------------------------------------------------------
-# Initialisation de Spark
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# 1. Spark session
+# -------------------------------------------------------------------
 
 spark = create_spark_session("EcommerceKafkaStreaming")
 
 
-# ---------------------------------------------------------
-# Lecture du flux Kafka
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# 2. Define the schema of incoming Kafka events
+# -------------------------------------------------------------------
 
-events_df = (
+event_schema = StructType([
+    StructField("event_id", StringType(), False),
+    StructField("user_id", IntegerType(), True),
+    StructField("product_id", IntegerType(), True),
+    StructField("event_type", StringType(), True),
+    StructField("price", DoubleType(), True),
+    StructField("timestamp", TimestampType(), True)
+])
+
+
+# -------------------------------------------------------------------
+# 3. Read events from Kafka
+# -------------------------------------------------------------------
+
+kafka_df = (
     spark.readStream
     .format("kafka")
-    .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
+    .option("kafka.bootstrap.servers", KAFKA_BROKER)
     .option("subscribe", KAFKA_TOPIC)
     .option("startingOffsets", "latest")
     .load()
 )
 
 
-# ---------------------------------------------------------
-# Conversion de la valeur Kafka en texte
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# 4. Parse the JSON payload
+# -------------------------------------------------------------------
 
-events_text_df = events_df.select(
-    F.col("value").cast("string").alias("event")
+parsed_df = (
+    kafka_df
+    .select(
+        from_json(
+            col("value").cast("string"),
+            event_schema
+        ).alias("data")
+    )
+    .select("data.*")
 )
 
 
-# ---------------------------------------------------------
-# Affichage du flux dans la console
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# 5. Display the structured events
+#
+# This is only a validation step.
+# The Bronze persistence layer will be added next.
+# -------------------------------------------------------------------
 
 query = (
-    events_text_df.writeStream
-    .format("console")
+    parsed_df
+    .writeStream
     .outputMode("append")
-    .option("truncate", "false")
-    .option("checkpointLocation", "/tmp/checkpoints/ecommerce_events")
+    .format("console")
+    .option("truncate", False)
+    .option("numRows", 20)
+    .option("checkpointLocation", "/opt/spark/checkpoints/bronze")
     .start()
 )
 
 
-# ---------------------------------------------------------
-# Maintien du streaming actif
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# 6. Keep the streaming application running
+# -------------------------------------------------------------------
 
 query.awaitTermination()

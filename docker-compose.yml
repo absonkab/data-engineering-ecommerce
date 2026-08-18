@@ -68,3 +68,17 @@ services:
       SPARK_WORKER_MEMORY: 2G
     command: >
       /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
+
+  spark-job:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    container_name: spark-job
+    depends_on:
+      - spark
+      - spark-worker
+      - kafka
+    volumes:
+      - ../lake:/opt/spark/lake
+    command: >
+      sleep infinity

@@ -70,6 +70,8 @@ services:
       SPARK_WORKER_MEMORY: 2G
     command: >
       /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
+    volumes:
+      - ./lake:/lake
 
   spark-job:
     build:

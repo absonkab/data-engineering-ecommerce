@@ -1,8 +1,7 @@
 # ingestion/producer/generator.py
 
 """
-Génération des événements e-commerce simulés.
-Responsabilité unique : produire des données réalistes.
+Generation of simulated e-commerce events to produce realistic data.
 """
 
 import uuid
@@ -13,28 +12,28 @@ from config.config import EVENT_TYPES
 
 def generate_event():
     """
-    Génère un événement utilisateur simulé.
+    Generate an user simulated event.
 
     Returns:
-        dict: événement structuré
+        dict: structured event
     """
 
     event_type = random.choice(EVENT_TYPES)
 
     event = {
-        # ID unique pour la traçabilité
+        # Unique ID for traceability
         "event_id": str(uuid.uuid4()),
 
-        # Simulation utilisateur
+        # User simulation
         "user_id": random.randint(1, 1000),
 
-        # Simulation produit
+        # Product simulation
         "product_id": random.randint(1, 100),
 
-        # Type d'événement
+        # event type
         "event_type": event_type,
 
-        # Prix uniquement pour purchase
+        # Price for purchase only
         "price": round(random.uniform(5, 500), 2) if event_type == "purchase" else None,
 
         # Timestamp ISO

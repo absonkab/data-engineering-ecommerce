@@ -1,10 +1,10 @@
 """
-Initialisation de la SparkSession utilisée par tous les jobs Spark.
+Initialization of the SparkSession used by all Spark jobs.
 
-Centraliser cette logique permet de :
-- réutiliser la configuration dans tous les jobs ;
-- éviter les duplications ;
-- faciliter l'évolution de la configuration Spark.
+Centralizing this logic makes it possible to:
+- reuse the configuration across all jobs;
+- avoid duplication;
+- simplify future changes to the Spark configuration.
 """
 
 from pyspark.sql import SparkSession
@@ -12,12 +12,12 @@ from pyspark.sql import SparkSession
 
 def create_spark_session(app_name: str = "EcommerceStreaming") -> SparkSession:
     """
-    Crée et configure une SparkSession.
+    Creates and configures a SparkSession.
 
     Parameters
     ----------
     app_name : str
-        Nom de l'application Spark affiché dans l'UI.
+        Spark application name displayed on the UI.
 
     Returns
     -------

@@ -1,8 +1,8 @@
 # ingestion/producer/producer.py
 
 """
-Gestion du producer Kafka.
-Responsable de la connexion et de l'envoi des messages.
+Kafka producer management.
+Responsible for connection and message sending.
 """
 
 import json
@@ -11,7 +11,7 @@ from kafka import KafkaProducer
 from config.config import KAFKA_BROKER
 
 
-# Configuration du logging (important en prod)
+# Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def create_producer():
     """
-    Initialise le producer Kafka.
+    Initializes the Kafka producer.
 
     Returns:
         KafkaProducer
@@ -31,10 +31,10 @@ def create_producer():
         producer = KafkaProducer(
             bootstrap_servers=KAFKA_BROKER,
 
-            # Sérialisation JSON automatique
+            # Automatic JSON serialization
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
 
-            # Retry en cas d'échec (résilience)
+            # Retry on failure
             retries=5
         )
 
@@ -48,12 +48,12 @@ def create_producer():
 
 def send_event(producer, topic, event):
     """
-    Envoie un événement dans Kafka.
+    Send an event in Kafka.
 
     Args:
-        producer: instance Kafka
-        topic (str): nom du topic
-        event (dict): événement à envoyer
+        producer: Kafka instance
+        topic (str): topic name
+        event (dict): event to send
     """
     try:
         producer.send(topic, value=event)

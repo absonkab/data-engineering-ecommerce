@@ -1,8 +1,8 @@
 # ingestion/producer/main.py
 
 """
-Point d'entrée du producer Kafka.
-Orchestre la génération + envoi des événements.
+Kafka producer entry point.
+Orchestrates event generation and dispatch.
 """
 
 import time
@@ -17,19 +17,19 @@ logger = logging.getLogger(__name__)
 
 def run():
     """
-    Boucle principale de production d'événements.
+    Main event-production loop.
     """
     producer = create_producer()
 
     try:
         while True:
-            # Générer un événement
+            # Generate an event
             event = generate_event()
 
-            # Envoyer à Kafka
+            # Send to Kafka
             send_event(producer, KAFKA_TOPIC, event)
 
-            # Simuler un flux réaliste (pas constant)
+            # Simulate a realistic (non-constant) flow.
             time.sleep(random.uniform(MIN_DELAY, MAX_DELAY))
 
     except KeyboardInterrupt:

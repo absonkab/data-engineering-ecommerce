@@ -15,6 +15,7 @@ from pyspark.sql.types import (
     IntegerType,
     DoubleType,
     TimestampType,
+    LongType,
 )
 
 
@@ -42,4 +43,22 @@ EVENT_SCHEMA = StructType([
     StructField("event_type", StringType(), True),
     StructField("price", DoubleType(), True),
     StructField("timestamp", TimestampType(), True),
+])
+
+# Complete schema for the Bronze layer.
+# It contains the business data from EVENT_SCHEMA
+# and adds the Kafka metadata persisted by bronze_stream.py
+
+BRONZE_SCHEMA = StructType([
+    StructField("event_id", StringType(), True),
+    StructField("user_id", IntegerType(), True),
+    StructField("product_id", IntegerType(), True),
+    StructField("event_type", StringType(), True),
+    StructField("price", DoubleType(), True),
+    StructField("timestamp", TimestampType(), True),
+    # Kafka metadata
+    StructField("kafka_topic", StringType(), True),
+    StructField("kafka_partition", IntegerType(), True),
+    StructField("kafka_offset", LongType(), True),
+    StructField("kafka_timestamp", TimestampType(), True),
 ])

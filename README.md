@@ -20,10 +20,12 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
     - List topics: docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
     - Run main.py (Start docker ingestion container)
     - Check a topic content: docker exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ecommerce_events --from-beginning
-- [ ] Spark Streaming
+- [x] Spark Streaming
     - [x] parsing JSON + typage + Kafka metadata
     - [x] Bronze Layer
-    - [ ] Silver Layer
+        - Run bronze stream spark-submit: /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py
+    - [x] Silver Layer
+        - Run silver stream spark-submit: /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
     - [ ] Gold Layer
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)

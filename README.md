@@ -23,10 +23,11 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
 - [x] Spark Streaming
     - [x] parsing JSON + typage + Kafka metadata
     - [x] Bronze Layer
-        - Run bronze stream spark-submit: /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py
+        - Run bronze stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py
     - [x] Silver Layer
-        - Run silver stream spark-submit: /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
-    - [ ] Gold Layer
+        - Run silver stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
+    - [x] Gold Layer
+        - Run gold stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/gold_stream.py
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

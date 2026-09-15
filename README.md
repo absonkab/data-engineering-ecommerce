@@ -13,7 +13,7 @@ Python, PySpark, Kafka, PostgreSQL, dbt, Airflow, Docker
 ## Architecture (WIP)
 Ingestion > Kafka > Spark > Data Lake > dbt > BI
 
-## Avancement
+## Project progress
 - [x] Setup infrastructure (Docker, Kafka, Spark, Postgres)
 - [x] Kafka Ingestion 
     - Kafka topic creation: docker exec kafka kafka-topics --create --topic ecommerce_events --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
@@ -27,7 +27,8 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
     - [x] Silver Layer
         - Run silver stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
     - [x] Gold Layer
-        - Run gold stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/gold_stream.py
+        - Run hourly metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/hourly_metrics.py
+        - Run product metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/product_metrics.py
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

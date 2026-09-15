@@ -111,7 +111,7 @@ hourly_metrics_df = (
 
 # Flatten the window structure
 
-gold_df = (
+hourly_metrics_gold_df = (
     hourly_metrics_df
     .select(
         F.col("window.start").alias("window_start"),
@@ -126,10 +126,10 @@ gold_df = (
 )
 
 
-# Write Gold
+# Write Gold for hourly metrics
 
-gold_query = (
-    gold_df.writeStream
+hourly_metrics_query = (
+    hourly_metrics_gold_df.writeStream
     .format("parquet")
     .outputMode("append")
     .option("path", GOLD_PATH)
@@ -140,4 +140,4 @@ gold_query = (
 
 # Keep the streaming query alive
 
-gold_query.awaitTermination()
+hourly_metrics_query.awaitTermination()

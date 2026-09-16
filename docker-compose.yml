@@ -84,5 +84,6 @@ services:
       - kafka
     volumes:
       - ./lake:/lake
+      - ./tests:/opt/spark/tests
     command: >
       sleep infinity

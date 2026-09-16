@@ -25,7 +25,12 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from utils.spark_session import create_spark_session
 from schemas.ecommerce_schema import BRONZE_SCHEMA
-from config.config import SILVER_PATH, GOLD_PATH, GOLD_CHECKPOINT_PATH
+from config.config import (
+    SILVER_PATH,
+    GOLD_PATH,
+    GOLD_CHECKPOINT_PATH,
+    WATERMARK_DELAY
+)
 
 
 # Product metrics gold paths
@@ -51,11 +56,9 @@ def build_product_metrics(df: DataFrame) -> DataFrame:
 
 
     # Watermark
-    # The watermark allows Spark to limit the amount of state maintained for the streaming aggregation.
-    # Events arriving more than 10 minutes after the current event-time progress may no longer update the aggregation.
 
     watermarked_df = (
-        df.withWatermark("timestamp", "10 minutes")
+        df.withWatermark("timestamp", WATERMARK_DELAY)
     )
 
 

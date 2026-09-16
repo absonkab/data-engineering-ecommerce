@@ -21,7 +21,12 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from utils.spark_session import create_spark_session
 from schemas.ecommerce_schema import BRONZE_SCHEMA
-from config.config import SILVER_PATH, GOLD_PATH, GOLD_CHECKPOINT_PATH
+from config.config import (
+    SILVER_PATH,
+    GOLD_PATH,
+    GOLD_CHECKPOINT_PATH,
+    WATERMARK_DELAY
+)
 
 
 # hourly metrics gold paths
@@ -60,7 +65,7 @@ def build_hourly_metrics(df: DataFrame) -> DataFrame:
 
     watermarked_df = (
         prepared_df
-        .withWatermark("timestamp", "10 minutes")
+        .withWatermark("timestamp", WATERMARK_DELAY)
     )
 
 

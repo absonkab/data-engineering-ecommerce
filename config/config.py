@@ -45,3 +45,21 @@ ANOMALY_TYPES = {
 # Delay applied to intentionally late events.
 # This is greater than the 10-minute Spark watermark.
 LATE_EVENT_MINUTES = 15
+
+# -------------------------------------------------------------------
+# Data Lake configuration
+# -------------------------------------------------------------------
+
+# Bronze paths
+BRONZE_PATH = "/lake/bronze"
+BRONZE_CHECKPOINT_PATH = "/lake/checkpoints/bronze"
+
+# Silver / Quarantine paths
+SILVER_PATH = "/lake/silver"
+SILVER_CHECKPOINT_PATH = "/lake/checkpoints/silver"
+QUARANTINE_PATH = "/lake/quarantine"
+QUARANTINE_CHECKPOINT_PATH = "/lake/checkpoints/quarantine"
+
+# Gold paths
+GOLD_PATH = "/lake/gold"
+GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"

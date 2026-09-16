@@ -14,6 +14,14 @@ KAFKA_TOPIC = "ecommerce_events"
 
 
 # -------------------------------------------------------------------
+# Spark configuration
+# -------------------------------------------------------------------
+# The watermark allows Spark to limit the amount of state maintained for the streaming aggregation.
+# Events that arrive very late (here more than 10 minutes after the current event-time progress) may no longer modify a window that Spark already considers closed.
+
+WATERMARK_DELAY = "10 minutes"
+
+# -------------------------------------------------------------------
 # Event simulation configuration
 # -------------------------------------------------------------------
 

@@ -25,13 +25,13 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from utils.spark_session import create_spark_session
 from schemas.ecommerce_schema import BRONZE_SCHEMA
+from config.config import SILVER_PATH, GOLD_PATH, GOLD_CHECKPOINT_PATH
 
 
-# Paths
+# Product metrics gold paths
 
-SILVER_PATH = "/lake/silver"
-GOLD_PATH = "/lake/gold/product_metrics"
-GOLD_CHECKPOINT = "/lake/checkpoints/gold/product_metrics"
+PRODUCT_GOLD_PATH = f"{GOLD_PATH}/product_metrics"
+PRODUCT_GOLD_CHECKPOINT_PATH = f"{GOLD_CHECKPOINT_PATH}/product_metrics"
 
 
 # Transformation
@@ -207,8 +207,8 @@ def main():
         product_metrics_gold_df.writeStream
         .format("parquet")
         .outputMode("append")
-        .option("path", GOLD_PATH)
-        .option("checkpointLocation", GOLD_CHECKPOINT)
+        .option("path", PRODUCT_GOLD_PATH)
+        .option("checkpointLocation", PRODUCT_GOLD_CHECKPOINT_PATH)
         .start()
     )
 

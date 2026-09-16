@@ -1,5 +1,5 @@
 """
-Gold streaming job.
+Hourly metrics Gold streaming job.
 
 This job reads valid events from the Silver layer
 and produces hourly aggregated business metrics.
@@ -17,14 +17,10 @@ A 10-minute watermark handles late-arriving events
 while limiting the state maintained by Spark.
 """
 
+from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from utils.spark_session import create_spark_session
 from schemas.ecommerce_schema import BRONZE_SCHEMA
-
-
-# Spark session
-
-spark = create_spark_session("ecommerce-gold")
 
 
 # Paths
@@ -34,110 +30,155 @@ GOLD_PATH = "/lake/gold/hourly_metrics"
 GOLD_CHECKPOINT = "/lake/checkpoints/gold/hourly_metrics"
 
 
-# Read Silver
+# Transformation
 
-silver_df = (
-    spark.readStream
-    .format("parquet")
-    .schema(BRONZE_SCHEMA)
-    .load(SILVER_PATH)
-)
+def build_hourly_metrics(df: DataFrame) -> DataFrame:
+    """
+    Computes business metrics aggregated by one-hour windows. 
 
+    This function contains only the transformation logic. 
+    It can therefore be tested independently of the streaming process. 
 
-# Prepare event time
+    Parameters:
+    - df : DataFrame: DataFrame containing valid events from the Silver layer. 
+    Returns:
+    - DataFrame: DataFrame containing hourly metrics.
+    """
 
-prepared_df = (
-    silver_df
-    .withColumn(
-        "timestamp",
-        F.col("timestamp").cast("timestamp")
-    )
-)
+    # Prepare event time
 
-
-# Watermark
-
-watermarked_df = (
-    prepared_df
-    .withWatermark("timestamp", "10 minutes")
-)
-
-
-# Hourly aggregations
-
-hourly_metrics_df = (
-    watermarked_df
-    .groupBy(
-        F.window(
-            F.col("timestamp"),
-            "1 hour"
+    prepared_df = (
+        df
+        .withColumn(
+            "timestamp",
+            F.col("timestamp").cast("timestamp")
         )
     )
-    .agg(
-        F.count("*").alias("total_events"),
 
-        F.sum(
-            F.when(
-                F.col("event_type") == "view",
-                1
-            ).otherwise(0)
-        ).alias("views"),
 
-        F.sum(
-            F.when(
-                F.col("event_type") == "add_to_cart",
-                1
-            ).otherwise(0)
-        ).alias("add_to_carts"),
+    # Watermark
 
-        F.sum(
-            F.when(
-                F.col("event_type") == "purchase",
-                1
-            ).otherwise(0)
-        ).alias("purchases"),
-
-        F.sum(
-            F.when(
-                F.col("event_type") == "purchase",
-                F.col("price")
-            ).otherwise(0)
-        ).alias("revenue"),
-
-        F.approx_count_distinct("user_id").alias("unique_users")
+    watermarked_df = (
+        prepared_df
+        .withWatermark("timestamp", "10 minutes")
     )
-)
 
 
-# Flatten the window structure
+    # Hourly aggregations
 
-hourly_metrics_gold_df = (
-    hourly_metrics_df
-    .select(
-        F.col("window.start").alias("window_start"),
-        F.col("window.end").alias("window_end"),
-        "total_events",
-        "views",
-        "add_to_carts",
-        "purchases",
-        "revenue",
-        "unique_users"
+    hourly_metrics_df = (
+        watermarked_df
+        .groupBy(
+            F.window(
+                F.col("timestamp"),
+                "1 hour"
+            )
+        )
+        .agg(
+            F.count("*").alias("total_events"),
+
+            F.sum(
+                F.when(
+                    F.col("event_type") == "view",
+                    1
+                ).otherwise(0)
+            ).alias("views"),
+
+            F.sum(
+                F.when(
+                    F.col("event_type") == "add_to_cart",
+                    1
+                ).otherwise(0)
+            ).alias("add_to_carts"),
+
+            F.sum(
+                F.when(
+                    F.col("event_type") == "purchase",
+                    1
+                ).otherwise(0)
+            ).alias("purchases"),
+
+            F.sum(
+                F.when(
+                    F.col("event_type") == "purchase",
+                    F.col("price")
+                ).otherwise(0)
+            ).alias("revenue"),
+
+            F.approx_count_distinct("user_id").alias("unique_users")
+        )
     )
-)
+
+    # Flatten the window structure
+
+    hourly_metrics_gold_df = (
+        hourly_metrics_df
+        .select(
+            F.col("window.start").alias("window_start"),
+            F.col("window.end").alias("window_end"),
+            "total_events",
+            "views",
+            "add_to_carts",
+            "purchases",
+            "revenue",
+            "unique_users"
+        )
+    )
 
 
-# Write Gold for hourly metrics
-
-hourly_metrics_query = (
-    hourly_metrics_gold_df.writeStream
-    .format("parquet")
-    .outputMode("append")
-    .option("path", GOLD_PATH)
-    .option("checkpointLocation", GOLD_CHECKPOINT)
-    .start()
-)
+    return hourly_metrics_gold_df
 
 
-# Keep the streaming query alive
+# Streaming job
 
-hourly_metrics_query.awaitTermination()
+def main():
+    """
+    Launches the Hourly Metrics streaming job. 
+
+    This function handles only:
+        - Spark Session creation
+        - reading from Silver
+        - calling the transformation
+        - writing to Gold
+    """
+
+    # Spark session
+
+    spark = create_spark_session("ecommerce-hourly-metrics")
+
+
+    # Read Silver
+
+    silver_df = (
+        spark.readStream
+        .format("parquet")
+        .schema(BRONZE_SCHEMA)
+        .load(SILVER_PATH)
+    )
+
+
+    # Application of the business transformation
+    hourly_metrics_gold_df = build_hourly_metrics(silver_df)
+
+
+    # Write Gold for hourly metrics in parquet format
+
+    hourly_metrics_query = (
+        hourly_metrics_gold_df.writeStream
+        .format("parquet")
+        .outputMode("append")
+        .option("path", GOLD_PATH)
+        .option("checkpointLocation", GOLD_CHECKPOINT)
+        .start()
+    )
+
+
+    # Keep the streaming query alive
+
+    hourly_metrics_query.awaitTermination()
+
+
+# Entry point
+
+if __name__ == "__main__":
+    main()

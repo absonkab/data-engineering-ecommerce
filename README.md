@@ -30,6 +30,13 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - Run hourly metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/hourly_metrics.py
         - Run product metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/product_metrics.py
         - Run user metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/user_metrics.py
+    - [x] Pipeline transformation tests
+        - test silver_stream : docker exec -it spark-job pytest -v /opt/spark/tests/test_silver.py
+        - test bronze_stream : docker exec -it spark-job pytest -v /opt/spark/tests/test_bronze.py
+        - test hourly_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/test_hourly_metrics.py
+        - test product_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/test_product_metrics.py
+        - test user_metrics   : docker exec -it spark-job pytest -v /opt/spark/tests/test_user_metrics.py
+        - test all from /tests: docker exec -it spark-job pytest -v /opt/spark/tests
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

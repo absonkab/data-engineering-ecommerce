@@ -37,6 +37,9 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - test product_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/test_product_metrics.py
         - test user_metrics   : docker exec -it spark-job pytest -v /opt/spark/tests/test_user_metrics.py
         - test all from /tests: docker exec -it spark-job pytest -v /opt/spark/tests
+    - [x] Serving Layer
+        - create hourly_metrics sql table: -> bash: docker exec -i postgres psql -U data_user -d ecommerce < sql/serving/create_gold_tables.sql
+                                   -> PowerShell: Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

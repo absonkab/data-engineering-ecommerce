@@ -27,6 +27,19 @@ RUN mkdir -p /home/spark/.ivy2/cache \
     && chown -R spark:spark /home/spark/.ivy2
 
 # ---------------------------------------------------------
+# PostgreSQL JDBC driver
+# ---------------------------------------------------------
+#
+# Spark uses JDBC to communicate with PostgreSQL.
+# The driver is a Java dependency, so it must be available
+# on Spark's classpath.
+# ---------------------------------------------------------
+
+RUN curl -L \
+    -o /opt/spark/jars/postgresql-42.7.8.jar \
+    https://jdbc.postgresql.org/download/postgresql-42.7.8.jar
+
+# ---------------------------------------------------------
 # Copy of Spark application code.
 # ---------------------------------------------------------
 

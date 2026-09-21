@@ -71,3 +71,22 @@ QUARANTINE_CHECKPOINT_PATH = "/lake/checkpoints/quarantine"
 # Gold paths
 GOLD_PATH = "/lake/gold"
 GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"
+
+# ============================================================
+# Configuration PostgreSQL
+# ============================================================
+
+POSTGRES_PROPERTIES = {
+    "url": "jdbc:postgresql://postgres:5432/ecommerce",
+    "user": "data_user",
+    "password": "data_pass",
+    "driver": "org.postgresql.Driver",
+}
+
+# ============================================================
+# Configuration Gold / Serving
+# ============================================================
+
+GOLD_HOURLY_METRICS_TABLE = "gold_hourly_metrics"
+GOLD_PRODUCT_METRICS_TABLE = "gold_product_metrics"
+GOLD_USER_METRICS_TABLE = "gold_user_metrics"

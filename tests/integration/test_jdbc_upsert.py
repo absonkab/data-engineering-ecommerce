@@ -1,0 +1,257 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    TimestampType,
+    LongType,
+    DecimalType,
+)
+from datetime import datetime
+from decimal import Decimal
+
+
+# PostgreSQL Configuration 
+
+# POSTGRES_URL = "jdbc:postgresql://postgres:5432/ecommerce"
+
+# POSTGRES_PROPERTIES = {
+#     "user": "data_user",
+#     "password": "data_pass",
+#     "driver": "org.postgresql.Driver",
+# }
+
+# STAGING_TABLE = "gold_hourly_metrics_staging"
+# TARGET_TABLE = "gold_hourly_metrics"
+from config.config import (
+    POSTGRES_PROPERTIES,
+    GOLD_PATH,
+    GOLD_HOURLY_METRICS_TABLE
+)
+HOURLY_GOLD_PATH = f"{GOLD_PATH}/hourly_metrics"
+STAGING_TABLE = f"{GOLD_HOURLY_METRICS_TABLE}_staging"
+
+
+# Spark session creation
+
+spark = (
+    SparkSession.builder
+    .appName("JDBCUpsertTest")
+    .master("local[1]")
+    .getOrCreate()
+)
+
+
+try:
+
+    # Create a test DataFrame
+    # We simulate a first publication of the window
+    # 10:00 -> 11:00.
+
+    schema = StructType([
+        StructField("window_start", TimestampType(), False),
+        StructField("window_end", TimestampType(), False),
+        StructField("total_events", LongType(), False),
+        StructField("views", LongType(), False),
+        StructField("add_to_carts", LongType(), False),
+        StructField("purchases", LongType(), False),
+        StructField("revenue", DecimalType(18, 2), False),
+        StructField("unique_users", LongType(), False),
+    ])
+
+    # test data
+    # data = [
+    #     (
+    #         datetime(2026, 9, 21, 10, 0, 0),
+    #         datetime(2026, 9, 21, 11, 0, 0),
+    #         100,
+    #         60,
+    #         30,
+    #         10,
+    #         Decimal("500.00"),
+    #         40,
+    #     )
+    # ]
+
+    # test data
+    data = [
+        (
+            datetime(2026, 9, 21, 10, 0, 0),
+            datetime(2026, 9, 21, 11, 0, 0),
+            100,
+            60,
+            30,
+            10,
+            Decimal("500.00"),
+            40,
+        ),
+        
+        (
+            datetime(2026, 9, 21, 10, 0, 0),
+            datetime(2026, 9, 21, 11, 0, 0),
+            105,
+            63,
+            32,
+            11,
+            Decimal("550.00"),
+            42,
+        )
+    ]
+
+    df = spark.createDataFrame(data, schema)
+
+    print("\n=== TEST DATA ===")
+    df.show(truncate=False)
+
+
+    # Writting in the staging table
+
+    print("\n=== WRITING TO STAGING ===")
+
+    (
+        df.write
+        .format("jdbc")
+        .option("url", POSTGRES_PROPERTIES["url"])
+        .option("dbtable", STAGING_TABLE)
+        .option("user", POSTGRES_PROPERTIES["user"])
+        .option("password", POSTGRES_PROPERTIES["password"])
+        .option("driver", POSTGRES_PROPERTIES["driver"])
+        .mode("overwrite")
+        .save()
+    )
+
+    print("STAGING_WRITE_OK")
+
+
+    # Native JDBC connection to PostgreSQL
+
+    connection = (
+        spark._sc._gateway.jvm.java.sql.DriverManager
+        .getConnection(
+            POSTGRES_PROPERTIES["url"],
+            POSTGRES_PROPERTIES["user"],
+            POSTGRES_PROPERTIES["password"],
+        )
+    )
+
+    try:
+
+
+        statement = connection.createStatement()
+
+        rows = df.collect()
+
+        # UPSERT each row toward finale table
+
+        for row in rows:
+            upsert_sql = f"""
+                INSERT INTO {GOLD_HOURLY_METRICS_TABLE} (
+                    window_start,
+                    window_end,
+                    total_events,
+                    views,
+                    add_to_carts,
+                    purchases,
+                    revenue,
+                    unique_users
+                )
+                VALUES (
+                    '{row.window_start}',
+                    '{row.window_end}',
+                    {row.total_events},
+                    {row.views},
+                    {row.add_to_carts},
+                    {row.purchases},
+                    {row.revenue},
+                    {row.unique_users}
+                )
+                ON CONFLICT (window_start, window_end)
+                DO UPDATE SET
+                    total_events = EXCLUDED.total_events,
+                    views = EXCLUDED.views,
+                    add_to_carts = EXCLUDED.add_to_carts,
+                    purchases = EXCLUDED.purchases,
+                    revenue = EXCLUDED.revenue,
+                    unique_users = EXCLUDED.unique_users;
+            """
+
+            statement.executeUpdate(upsert_sql)
+
+            print("UPSERT_OK")
+
+        # upsert_sql = f"""
+        # INSERT INTO {GOLD_HOURLY_METRICS_TABLE} (
+        #     window_start,
+        #     window_end,
+        #     total_events,
+        #     views,
+        #     add_to_carts,
+        #     purchases,
+        #     revenue,
+        #     unique_users
+        # )
+        # SELECT
+        #     window_start,
+        #     window_end,
+        #     total_events,
+        #     views,
+        #     add_to_carts,
+        #     purchases,
+        #     revenue,
+        #     unique_users
+        # FROM {STAGING_TABLE}
+        # ON CONFLICT (window_start, window_end)
+        # DO UPDATE SET
+        #     total_events = EXCLUDED.total_events,
+        #     views = EXCLUDED.views,
+        #     add_to_carts = EXCLUDED.add_to_carts,
+        #     purchases = EXCLUDED.purchases,
+        #     revenue = EXCLUDED.revenue,
+        #     unique_users = EXCLUDED.unique_users;
+        # """
+
+
+
+        # Checking
+
+        result = statement.executeQuery(f"""
+            SELECT
+                window_start,
+                window_end,
+                total_events,
+                views,
+                purchases,
+                revenue
+            FROM {GOLD_HOURLY_METRICS_TABLE}
+            WHERE window_start = '2026-09-21 10:00:00'
+              AND window_end = '2026-09-21 11:00:00';
+        """)
+
+        print("\n=== POSTGRES RESULT ===")
+
+        while result.next():
+            print(
+                "window_start =", result.getString("window_start"),
+                "| window_end =", result.getString("window_end"),
+                "| total_events =", result.getLong("total_events"),
+                "| views =", result.getLong("views"),
+                "| purchases =", result.getLong("purchases"),
+                "| revenue =", result.getBigDecimal("revenue"),
+            )
+
+
+        # Staging cleaning
+
+        statement.executeUpdate(
+            f"DROP TABLE IF EXISTS {STAGING_TABLE};"
+        )
+
+        print("\nSTAGING_CLEANUP_OK")
+
+        statement.close()
+
+    finally:
+        connection.close()
+
+
+finally:
+    spark.stop()

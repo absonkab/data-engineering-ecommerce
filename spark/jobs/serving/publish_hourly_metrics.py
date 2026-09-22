@@ -1,17 +1,37 @@
-from pyspark.sql import DataFrame
-from pyspark.sql import SparkSession
-
+from pyspark.sql import DataFrame, SparkSession
+from jobs.serving.common.postgres import (
+    cleanup_staging,
+    upsert_from_staging,
+    write_to_staging,
+)
+from jobs.serving.common.spark import get_spark_session
 
 # Configuration 
 
 from config.config import (
-    POSTGRES_URL,
-    POSTGRES_PROPERTIES,
     GOLD_PATH,
     GOLD_HOURLY_METRICS_TABLE
 )
 HOURLY_GOLD_PATH = f"{GOLD_PATH}/hourly_metrics"
 STAGING_TABLE = f"{GOLD_HOURLY_METRICS_TABLE}_staging"
+
+# Columns shared by Gold and Serving.
+HOURLY_METRICS_COLUMNS = [
+    "window_start",
+    "window_end",
+    "total_events",
+    "views",
+    "add_to_carts",
+    "purchases",
+    "revenue",
+    "unique_users",
+]
+
+# Business key used to identify a unique hourly window.
+HOURLY_METRICS_CONFLICT_COLUMNS = [
+    "window_start",
+    "window_end",
+]
 
 
 # Reading the Gold dataset
@@ -30,160 +50,46 @@ def prepare_hourly_metrics(df: DataFrame) -> DataFrame:
     Prepares the Gold DataFrame before writing it to PostgreSQL. 
     Only the columns corresponding to the gold_hourly_metrics serving table are retained.
     """
-
-    return df.select(
-        "window_start",
-        "window_end",
-        "total_events",
-        "views",
-        "add_to_carts",
-        "purchases",
-        "revenue",
-        "unique_users",
-    )
+    return df.select(*HOURLY_METRICS_COLUMNS)
 
 
-# Writing to the staging table
-
-def write_to_staging(df: DataFrame) -> None:
-    """
-    Writes the data to a temporary staging table. 
-    This step then enables PostgreSQL to perform the UPSERT into the final table.
-    """
-
-    (
-        df.write
-        .format("jdbc")
-        .option("url", POSTGRES_URL)
-        .option("dbtable", STAGING_TABLE)
-        .option("user", POSTGRES_PROPERTIES["user"])
-        .option("password", POSTGRES_PROPERTIES["password"])
-        .option("driver", POSTGRES_PROPERTIES["driver"])
-        .mode("overwrite")
-        .save()
-    )
-
-
-# PostgreSQL UPSERT
-
-def upsert_to_postgres(spark: SparkSession) -> None:
-    """
-    Merges staging data into the final serving table. 
-    The primary key (window_start, window_end) makes the operation idempotent:
-        - new window -> INSERT
-        - existing window -> UPDATE
-    """
-
-    # The PostgreSQL driver is already present in the Spark image.
-    # JDBC is used to execute SQL operations.
-    connection = spark._sc._gateway.jvm.java.sql.DriverManager.getConnection(
-        POSTGRES_URL,
-        POSTGRES_PROPERTIES["user"],
-        POSTGRES_PROPERTIES["password"],
-    )
-
-    try:
-        statement = connection.createStatement()
-
-        sql = f"""
-        INSERT INTO {GOLD_HOURLY_METRICS_TABLE} (
-            window_start,
-            window_end,
-            total_events,
-            views,
-            add_to_carts,
-            purchases,
-            revenue,
-            unique_users
-        )
-        SELECT
-            window_start,
-            window_end,
-            total_events,
-            views,
-            add_to_carts,
-            purchases,
-            revenue,
-            unique_users
-        FROM {STAGING_TABLE}
-        ON CONFLICT (window_start, window_end)
-        DO UPDATE SET
-            total_events = EXCLUDED.total_events,
-            views = EXCLUDED.views,
-            add_to_carts = EXCLUDED.add_to_carts,
-            purchases = EXCLUDED.purchases,
-            revenue = EXCLUDED.revenue,
-            unique_users = EXCLUDED.unique_users;
-        """
-
-        statement.executeUpdate(sql)
-
-        statement.close()
-
-    finally:
-        connection.close()
-
-
-# Cleanup staging
-
-def cleanup_staging(spark: SparkSession) -> None:
-    """
-    Remove the temporary staging table after a successful
-    publication.
-    """
-
-    connection = (
-        spark._sc._gateway.jvm.java.sql.DriverManager
-        .getConnection(
-            POSTGRES_URL,
-            POSTGRES_PROPERTIES["user"],
-            POSTGRES_PROPERTIES["password"],
-        )
-    )
-
-    try:
-        statement = connection.createStatement()
-
-        # The staging table is used only during this publication.
-        statement.executeUpdate(
-            f"DROP TABLE IF EXISTS {STAGING_TABLE};"
-        )
-
-        statement.close()
-
-    finally:
-        connection.close()
-
-
-
-# Main
+# Main publication workflow
 
 def main() -> None:
     """
     Publish Gold hourly metrics into PostgreSQL Serving.
     """
 
-    spark = (
-        SparkSession.builder
-        .appName("ServingHourlyMetricsPublisher")
-        .getOrCreate()
+    # Create the SparkSession through the shared infrastructure
+    spark = get_spark_session(
+        "ServingHourlyMetricsPublisher"
     )
 
     try:
         # Gold Reading
         gold_df = read_hourly_metrics(spark)
 
-        # Data preparation
+        # Prepare the Serving dataset
         prepared_df = prepare_hourly_metrics(gold_df)
 
-        # Publication in the staging table
-        write_to_staging(prepared_df)
+        # Write the current Gold snapshot to staging
+        write_to_staging(df=prepared_df, staging_table=STAGING_TABLE,)
 
-        # UPSERT in PostgreSQL
-        upsert_to_postgres(spark)
+        # UPSERT in PostgreSQL: Merge staging into the final Serving table
+        upsert_from_staging(
+            spark=spark,
+            staging_table=STAGING_TABLE,
+            target_table=GOLD_HOURLY_METRICS_TABLE,
+            columns=HOURLY_METRICS_COLUMNS,
+            conflict_columns=HOURLY_METRICS_CONFLICT_COLUMNS,
+        )
 
-        # Cleanup
-        cleanup_staging(spark)
+
+        # Cleanup: Remove temporary staging table
+        cleanup_staging(
+            spark=spark,
+            staging_table=STAGING_TABLE,
+        )
 
         print("Hourly metrics successfully published to PostgreSQL.")
 

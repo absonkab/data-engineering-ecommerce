@@ -26,3 +26,29 @@ CREATE TABLE IF NOT EXISTS gold_hourly_metrics (
 
     PRIMARY KEY (window_start, window_end)
 );
+
+-- ============================================================
+-- Product metrics
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS gold_product_metrics (
+    window_start TIMESTAMP NOT NULL,
+    window_end TIMESTAMP NOT NULL,
+
+    product_id BIGINT NOT NULL,
+
+    total_events BIGINT NOT NULL,
+    views BIGINT NOT NULL,
+    add_to_carts BIGINT NOT NULL,
+    purchases BIGINT NOT NULL,
+
+    revenue NUMERIC(18, 2) NOT NULL,
+
+    unique_users BIGINT NOT NULL,
+    unique_viewers BIGINT NOT NULL,
+    unique_buyers BIGINT NOT NULL,
+
+    conversion_rate NUMERIC(10, 4) NOT NULL,
+
+    PRIMARY KEY (window_start, window_end, product_id)
+);

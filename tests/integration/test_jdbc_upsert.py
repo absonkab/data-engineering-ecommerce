@@ -9,11 +9,13 @@ from pyspark.sql.types import (
 from datetime import datetime
 from decimal import Decimal
 import time
+from jobs.serving.publish_hourly_metrics import prepare_hourly_metrics, write_to_staging, upsert_to_postgres, cleanup_staging
 
 
 # PostgreSQL Configuration 
 
 from config.config import (
+    POSTGRES_URL,
     POSTGRES_PROPERTIES,
     GOLD_PATH,
     GOLD_HOURLY_METRICS_TABLE
@@ -76,25 +78,18 @@ try:
 
     df = spark.createDataFrame(data, schema)
 
+    # Data preparation
+    prepared_df = prepare_hourly_metrics(df)
+
     print("\n=== TEST DATA ===")
-    df.show(truncate=False)
+    prepared_df.show(truncate=False)
 
 
     # Writting in the staging table
 
     print("\n=== WRITING TO STAGING ===")
 
-    (
-        df.write
-        .format("jdbc")
-        .option("url", POSTGRES_PROPERTIES["url"])
-        .option("dbtable", STAGING_TABLE)
-        .option("user", POSTGRES_PROPERTIES["user"])
-        .option("password", POSTGRES_PROPERTIES["password"])
-        .option("driver", POSTGRES_PROPERTIES["driver"])
-        .mode("overwrite")
-        .save()
-    )
+    write_to_staging(prepared_df)
 
     print("STAGING_WRITE_OK")
 
@@ -104,7 +99,7 @@ try:
     connection = (
         spark._sc._gateway.jvm.java.sql.DriverManager
         .getConnection(
-            POSTGRES_PROPERTIES["url"],
+            POSTGRES_URL,
             POSTGRES_PROPERTIES["user"],
             POSTGRES_PROPERTIES["password"],
         )
@@ -112,12 +107,12 @@ try:
 
     try:
 
-
         statement = connection.createStatement()
 
         rows = df.collect()
 
         # UPSERT each row toward finale table
+        # We can't so use upsert_to_postgres() here
 
         for row in rows:
             upsert_sql = f"""
@@ -173,21 +168,22 @@ try:
         print("\n=== POSTGRES RESULT ===")
 
         while result.next():
+            print("+---------------------------------------------------------------------------------------------------------------------------------------------+")
             print(
-                "window_start =", result.getString("window_start"),
+                "| window_start =", result.getString("window_start"),
                 "| window_end =", result.getString("window_end"),
                 "| total_events =", result.getLong("total_events"),
                 "| views =", result.getLong("views"),
                 "| purchases =", result.getLong("purchases"),
                 "| revenue =", result.getBigDecimal("revenue"),
+                "|",
             )
+            print("+---------------------------------------------------------------------------------------------------------------------------------------------+")
 
 
-        # Staging cleaning
+        # Staging cleanup
 
-        statement.executeUpdate(
-            f"DROP TABLE IF EXISTS {STAGING_TABLE};"
-        )
+        cleanup_staging(spark)
 
         print("\nSTAGING_CLEANUP_OK")
 

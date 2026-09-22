@@ -5,6 +5,7 @@ from pyspark.sql import SparkSession
 # Configuration 
 
 from config.config import (
+    POSTGRES_URL,
     POSTGRES_PROPERTIES,
     GOLD_PATH,
     GOLD_HOURLY_METRICS_TABLE
@@ -53,7 +54,7 @@ def write_to_staging(df: DataFrame) -> None:
     (
         df.write
         .format("jdbc")
-        .option("url", POSTGRES_PROPERTIES["url"])
+        .option("url", POSTGRES_URL)
         .option("dbtable", STAGING_TABLE)
         .option("user", POSTGRES_PROPERTIES["user"])
         .option("password", POSTGRES_PROPERTIES["password"])
@@ -76,7 +77,7 @@ def upsert_to_postgres(spark: SparkSession) -> None:
     # The PostgreSQL driver is already present in the Spark image.
     # JDBC is used to execute SQL operations.
     connection = spark._sc._gateway.jvm.java.sql.DriverManager.getConnection(
-        POSTGRES_PROPERTIES["url"],
+        POSTGRES_URL,
         POSTGRES_PROPERTIES["user"],
         POSTGRES_PROPERTIES["password"],
     )
@@ -134,7 +135,7 @@ def cleanup_staging(spark: SparkSession) -> None:
     connection = (
         spark._sc._gateway.jvm.java.sql.DriverManager
         .getConnection(
-            POSTGRES_PROPERTIES["url"],
+            POSTGRES_URL,
             POSTGRES_PROPERTIES["user"],
             POSTGRES_PROPERTIES["password"],
         )

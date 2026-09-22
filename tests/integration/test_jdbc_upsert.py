@@ -8,20 +8,11 @@ from pyspark.sql.types import (
 )
 from datetime import datetime
 from decimal import Decimal
+import time
 
 
 # PostgreSQL Configuration 
 
-# POSTGRES_URL = "jdbc:postgresql://postgres:5432/ecommerce"
-
-# POSTGRES_PROPERTIES = {
-#     "user": "data_user",
-#     "password": "data_pass",
-#     "driver": "org.postgresql.Driver",
-# }
-
-# STAGING_TABLE = "gold_hourly_metrics_staging"
-# TARGET_TABLE = "gold_hourly_metrics"
 from config.config import (
     POSTGRES_PROPERTIES,
     GOLD_PATH,
@@ -44,8 +35,8 @@ spark = (
 try:
 
     # Create a test DataFrame
-    # We simulate a first publication of the window
-    # 10:00 -> 11:00.
+    # We simulate a first publication of the window 10:00 -> 11:00.
+    # and a second one with the same window
 
     schema = StructType([
         StructField("window_start", TimestampType(), False),
@@ -59,24 +50,10 @@ try:
     ])
 
     # test data
-    # data = [
-    #     (
-    #         datetime(2026, 9, 21, 10, 0, 0),
-    #         datetime(2026, 9, 21, 11, 0, 0),
-    #         100,
-    #         60,
-    #         30,
-    #         10,
-    #         Decimal("500.00"),
-    #         40,
-    #     )
-    # ]
-
-    # test data
     data = [
         (
-            datetime(2026, 9, 21, 10, 0, 0),
-            datetime(2026, 9, 21, 11, 0, 0),
+            datetime(2000, 9, 1, 10, 0, 0),
+            datetime(2000, 9, 1, 11, 0, 0),
             100,
             60,
             30,
@@ -86,8 +63,8 @@ try:
         ),
         
         (
-            datetime(2026, 9, 21, 10, 0, 0),
-            datetime(2026, 9, 21, 11, 0, 0),
+            datetime(2000, 9, 1, 10, 0, 0),
+            datetime(2000, 9, 1, 11, 0, 0),
             105,
             63,
             32,
@@ -178,40 +155,7 @@ try:
 
             print("UPSERT_OK")
 
-        # upsert_sql = f"""
-        # INSERT INTO {GOLD_HOURLY_METRICS_TABLE} (
-        #     window_start,
-        #     window_end,
-        #     total_events,
-        #     views,
-        #     add_to_carts,
-        #     purchases,
-        #     revenue,
-        #     unique_users
-        # )
-        # SELECT
-        #     window_start,
-        #     window_end,
-        #     total_events,
-        #     views,
-        #     add_to_carts,
-        #     purchases,
-        #     revenue,
-        #     unique_users
-        # FROM {STAGING_TABLE}
-        # ON CONFLICT (window_start, window_end)
-        # DO UPDATE SET
-        #     total_events = EXCLUDED.total_events,
-        #     views = EXCLUDED.views,
-        #     add_to_carts = EXCLUDED.add_to_carts,
-        #     purchases = EXCLUDED.purchases,
-        #     revenue = EXCLUDED.revenue,
-        #     unique_users = EXCLUDED.unique_users;
-        # """
-
-
-
-        # Checking
+        # Checking that we have only the second row
 
         result = statement.executeQuery(f"""
             SELECT
@@ -222,8 +166,8 @@ try:
                 purchases,
                 revenue
             FROM {GOLD_HOURLY_METRICS_TABLE}
-            WHERE window_start = '2026-09-21 10:00:00'
-              AND window_end = '2026-09-21 11:00:00';
+            WHERE window_start = '2000-09-01 10:00:00'
+              AND window_end = '2000-09-01 11:00:00';
         """)
 
         print("\n=== POSTGRES RESULT ===")
@@ -246,6 +190,15 @@ try:
         )
 
         print("\nSTAGING_CLEANUP_OK")
+
+        # Delete the test row
+        print("\nTest row will be deleted in 30s\nElse don't forget to delete it manually: DELETE FROM gold_hourly_metrics WHERE window_start = '2000-09-01 10:00:00' AND window_end = '2000-09-01 11:00:00';")
+        delete_test_row_sql = f"""DELETE FROM {GOLD_HOURLY_METRICS_TABLE} WHERE window_start = '2000-09-01 10:00:00' AND window_end = '2000-09-01 11:00:00';"""
+
+        # Wait 30 seconds
+        time.sleep(30)
+        rows_deleted = statement.executeUpdate(delete_test_row_sql)
+        print(f"{rows_deleted} deleted line. Test row is successfully deleted")
 
         statement.close()
 

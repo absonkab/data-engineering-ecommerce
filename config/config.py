@@ -75,9 +75,8 @@ GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"
 # ============================================================
 # Configuration PostgreSQL
 # ============================================================
-
+POSTGRES_URL = "jdbc:postgresql://postgres:5432/ecommerce"
 POSTGRES_PROPERTIES = {
-    "url": "jdbc:postgresql://postgres:5432/ecommerce",
     "user": "data_user",
     "password": "data_pass",
     "driver": "org.postgresql.Driver",

@@ -42,6 +42,14 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
                                    -> PowerShell: Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce
         - [x] publish hourly metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_hourly_metrics.py
         - [x] publish product metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_product_metrics.py
+        - [x] publish user metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_user_metrics.py
+    - [x] Serving Layer Tests
+        - [x] integration test JDBC connection : PowerShell: docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_connection.py
+        - [x] integration test jdbc upsert : docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_upsert.py
+        - [x] unit test postgres : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_postgres.py 
+        - [x] unit test hourly_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py
+        - [x] unit test product_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py
+        - [x] unit test user_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py
 - [ ] Data modeling (dbt)
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

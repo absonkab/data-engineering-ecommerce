@@ -21,3 +21,8 @@ data/
 .idea/
 # Data lake
 lake/
+
+# dbt
+dbt/logs/
+dbt/target/
+dbt/.user.yml

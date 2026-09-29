@@ -1,0 +1,10 @@
+name: ecommerce_dbt # dbt project name
+version: "1.0.0"
+
+profile: ecommerce_dbt # connection profile in profiles.yml
+
+model-paths: ["models"] # Where will be our SQL models
+
+models:
+  ecommerce_dbt:
+    +materialized: view # Create a view named materialized in the DB

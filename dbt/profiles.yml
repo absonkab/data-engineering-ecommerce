@@ -1,0 +1,13 @@
+ecommerce_dbt: # Profile name
+  target: dev
+
+  outputs:
+    dev:
+      type: postgres      # DB type
+      host: postgres      # Docker service name of our DB
+      user: data_user     # DB username
+      password: data_pass # DB password
+      port: 5432          # DB Port
+      dbname: ecommerce   # DB name
+      schema: analytics   # schema name for dbt objects
+      threads: 2

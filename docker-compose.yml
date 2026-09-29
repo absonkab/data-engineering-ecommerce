@@ -18,6 +18,21 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+  
+  dbt:
+    build:
+      context: .
+      dockerfile: ./dbt/Dockerfile
+    container_name: dbt
+    depends_on:
+      - postgres
+    volumes:
+      - ./dbt:/usr/app/dbt
+    working_dir: /usr/app/dbt
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt # Show dbt where to find profiles.yml
+    command: >
+      sleep infinity
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0

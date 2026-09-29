@@ -50,6 +50,15 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - [x] unit test hourly_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py
         - [x] unit test product_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py
         - [x] unit test user_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py
-- [ ] Data modeling (dbt)
+- [x] Data modeling (dbt)
+    - [x] dbt installation (docker container)
+        - Check dbt version : docker exec -it dbt dbt --version
+    - [x] Define dbt project, profile & adapter (PostgreSQL)
+        - Diagnoctic dbt configuration : docker exec -it dbt dbt debug
+    - [x] Define dbt sources
+        - Check if dbt soucres are detected: docker exec -it dbt dbt ls
+    - [ ] Staging models
+    - [ ] Staging models
+    - [ ] Mart models
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

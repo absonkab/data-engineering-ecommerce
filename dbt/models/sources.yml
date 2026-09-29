@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: serving                 # source name
+    schema: public                # PostgreSQL schema in which we can find our Gold Serving tables
+
+    tables:
+      - name: gold_hourly_metrics
+
+      - name: gold_product_metrics
+
+      - name: gold_user_metrics

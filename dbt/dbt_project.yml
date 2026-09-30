@@ -7,4 +7,4 @@ model-paths: ["models"] # Where will be our SQL models
 
 models:
   ecommerce_dbt:
-    +materialized: view # Create a view named materialized in the DB
+    +materialized: view # Create a view in the DB

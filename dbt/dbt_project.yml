@@ -7,4 +7,11 @@ model-paths: ["models"] # Where will be our SQL models
 
 models:
   ecommerce_dbt:
-    +materialized: view # Create a view in the DB
+    staging:
+      +materialized: view # Create a view in the DB for staging models
+
+    intermediate:
+      +materialized: view # Create a view in the DB for intermediate models
+
+    marts:
+      +materialized: table # Create a table in the DB for mart models

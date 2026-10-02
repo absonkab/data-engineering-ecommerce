@@ -26,6 +26,8 @@ services:
     container_name: dbt
     depends_on:
       - postgres
+    ports:
+      - "8081:8080"  # Port 8081 on Windows port 8080 in lthe dbt container.
     volumes:
       - ./dbt:/usr/app/dbt
     working_dir: /usr/app/dbt

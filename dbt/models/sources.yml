@@ -2,11 +2,20 @@ version: 2
 
 sources:
   - name: serving                 # source name
+    description: >
+      Gold tables published by Spark jobs in PostgreSQL. These tables constitute the serving layer consumed by dbt.
+
     schema: public                # PostgreSQL schema in which we can find our Gold Serving tables
 
     tables:
       - name: gold_hourly_metrics
+        description: >
+          E-commerce metrics aggregated by one-hour time window.
 
       - name: gold_product_metrics
+        description: >
+          E-commerce metrics aggregated by product and one-hour time window.
 
       - name: gold_user_metrics
+        description: >
+          E-commerce metrics aggregated by user and one-hour time window.

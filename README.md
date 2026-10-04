@@ -57,8 +57,21 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - Diagnoctic dbt configuration : docker exec -it dbt dbt debug
     - [x] Define dbt sources
         - Check if dbt soucres are detected: docker exec -it dbt dbt ls
-    - [ ] Staging models
-    - [ ] Staging models
-    - [ ] Mart models
+    - [x] Staging models
+        - [x] Hourly model
+        - [x] Product model
+        - [x] user model
+    - [x] Intermediate models
+        - [x] Product model
+        - [ ] User model
+        - [ ] Hourly model
+    - [x] Mart models
+        - [x] Product model
+        - [ ] User model
+        - [ ] Hourly model
+    - [x] Generate dbt documentation
+        - [x] Product model
+        - [ ] User model
+        - [ ] Hourly model
 - [ ] Orchestration (Airflow)
 - [ ] Dashboard

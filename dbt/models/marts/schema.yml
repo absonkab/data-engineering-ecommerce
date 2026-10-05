@@ -88,8 +88,9 @@ models:
   - name: mart_user_activity
 
     description: >
-      Analytic data mart presenting user activity in one-hour time windows. 
-      This model is designed for user behavior analysis and consumption by dashboards.
+      An analytical data mart presenting user e-commerce activity in one-hour time windows. 
+      This model aggregates key metrics regarding activity, purchases, revenue, and product engagement. 
+      It is designed for analytical use and dashboards.
 
     columns:
 
@@ -131,7 +132,7 @@ models:
 
       - name: purchases
         description: >
-          Number of purchases made by the user.
+          Number of purchases made by the user during the time window.
         tests:
           - not_null
 
@@ -143,7 +144,8 @@ models:
 
       - name: revenue_per_purchase
         description: >
-          Average revenue generated per user purchase.
+          Average revenue generated per purchase for the user.
+          The value is zero when no purchase is recorded.
         tests:
           - not_null
 

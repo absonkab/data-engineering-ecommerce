@@ -80,8 +80,10 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
     - [x] Generate dbt documentation
         - [x] Product model
         - [X] User model
-        - [ ] Hourly model
+        - [x] Hourly model
         - Generate dbt documentation : docker exec -it dbt dbt docs generate
         - Run dbt docs server : docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080
-- [ ] Orchestration (Airflow)
+- [X] Orchestration (Airflow)
+    - [ ] Airflow installation
+    - [ ] DAG 1
 - [ ] Dashboard

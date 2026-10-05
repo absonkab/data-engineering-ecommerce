@@ -67,19 +67,19 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
     - [x] Intermediate models
         - [x] Product model
         - [x] User model
-        - [ ] Hourly model
+        - [x] Hourly model
     - [x] Mart models
         - [x] Product model
         - [x] User model
-        - [ ] Hourly model
+        - [x] Hourly model
     - [x] tests
         - [x] Product model
         - [x] User model
-        - [ ] Hourly model
+        - [x] Hourly model
         - Run dbt tests : docker exec -it dbt dbt test --select model_name
     - [x] Generate dbt documentation
         - [x] Product model
-        - [ ] User model
+        - [X] User model
         - [ ] Hourly model
         - Generate dbt documentation : docker exec -it dbt dbt docs generate
         - Run dbt docs server : docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080

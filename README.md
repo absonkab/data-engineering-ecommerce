@@ -84,6 +84,7 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - Generate dbt documentation : docker exec -it dbt dbt docs generate
         - Run dbt docs server : docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080
 - [X] Orchestration (Airflow)
-    - [ ] Airflow installation
-    - [ ] DAG 1
+    - [x] Airflow installation (init, webserver & scheduler)
+    - [x] DAG 0 : First Test as Validation DAG
+    - [ ] DAG 1 : ecommerce pipeline (Gold metrics -> PostgreSQL Serving -> dbt transformations)
 - [ ] Dashboard

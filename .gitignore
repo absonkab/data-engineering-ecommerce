@@ -26,3 +26,8 @@ lake/
 dbt/logs/
 dbt/target/
 dbt/.user.yml
+
+# Airflow generated files
+airflow/logs/
+airflow/__pycache__/
+airflow/dags/__pycache__/

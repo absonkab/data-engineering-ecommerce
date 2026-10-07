@@ -12,6 +12,12 @@ RUN pip install --no-cache-dir dbt-postgres==1.11.0
 # dbt project working directory.
 WORKDIR /usr/app/dbt
 
+# Copy the dbt project into the image.
+# This makes the image self-contained so DockerOperator can execute dbt without relying on host-mounted files.
+COPY dbt/dbt_project.yml .
+COPY dbt/profiles.yml .
+COPY dbt/models ./models
+
 # By default, the container remains active.
 # dbt commands will be run manually using "docker exec".
 CMD ["sleep", "infinity"]

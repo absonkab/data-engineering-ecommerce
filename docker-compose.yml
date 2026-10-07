@@ -7,15 +7,16 @@ services:
     image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_USER: data_user
-      POSTGRES_PASSWORD: data_pass
-      POSTGRES_DB: ecommerce
+      # PostgreSQL credentials are loaded from the local .env file.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
 
     # Verify that PostgreSQL is actually accepting connections before starting the services that depend on it.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U data_user -d ecommerce"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,7 +42,8 @@ services:
       dockerfile: ./dbt/Dockerfile
     container_name: dbt
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8081:8080"  # Port 8081 on Windows port 8080 in lthe dbt container.
     volumes:
@@ -49,6 +51,12 @@ services:
     working_dir: /usr/app/dbt
     environment:
       DBT_PROFILES_DIR: /usr/app/dbt # Show dbt where to find profiles.yml
+      # PostgreSQL connection variables.
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     command: >
       sleep infinity
 
@@ -178,6 +186,14 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://data_user:data_pass@postgres:5432/ecommerce
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # Disables the loading of example DAGs. This keeps our interface clean.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC # Executes the DAGs using the UTC time zone.
+
+      # PostgreSQL variables used by Airflow and DockerOperator.
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
     volumes:
       - ./airflow/dags:/opt/airflow/dags          # The project's DAGs will be stored here.
       - ./airflow/logs:/opt/airflow/logs          # Airflow logs remain accessible from Windows.
@@ -195,6 +211,14 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://data_user:data_pass@postgres:5432/ecommerce
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # No example DAGs.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC  # Default time zone.
+
+      # PostgreSQL variables used by Airflow and DockerOperator.
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      
     volumes:
       - ./airflow/dags:/opt/airflow/dags            # The scheduler must have access to the same DAGs.
       - ./airflow/logs:/opt/airflow/logs            # Logs produced by the tasks.

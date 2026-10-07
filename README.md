@@ -13,53 +13,66 @@ Python, PySpark, Kafka, PostgreSQL, dbt, Airflow, Docker
 ## Architecture (WIP)
 Ingestion > Kafka > Spark > Data Lake > dbt > BI
 
+## Environment Setup
+
+Before starting the project, create a local `.env` file at the root of the repository.
+You can use the provided example:
+
+```bash
+cp .env.example .env
+```
+Then update the values if needed.
+The `.env` file contains the PostgreSQL and Airflow configuration used by the Docker Compose services.
+
+
 ## Project progress
 - [x] Setup infrastructure (Docker, Kafka, Spark, Postgres)
 - [x] Kafka Ingestion 
-    - Kafka topic creation: docker exec kafka kafka-topics --create --topic ecommerce_events --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-    - List topics: docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
+    - Kafka topic creation: 
+    ```docker exec kafka kafka-topics --create --topic ecommerce_events --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 ```
+    - List topics: ```docker exec kafka kafka-topics --list --bootstrap-server localhost:9092```
     - Run main.py (Start docker ingestion container)
-    - Check a topic content: docker exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ecommerce_events --from-beginning
+    - Check a topic content: ```docker exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ecommerce_events --from-beginning```
 - [x] Spark Streaming
     - [x] parsing JSON + typage + Kafka metadata
     - [x] Bronze Layer
-        - Run bronze stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py
+        - Run bronze stream spark-submit: ```docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py```
     - [x] Silver Layer
-        - Run silver stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
+        - Run silver stream spark-submit: ```docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py```
     - [x] Gold Layer
-        - Run hourly metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/hourly_metrics.py
-        - Run product metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/product_metrics.py
-        - Run user metrics stream spark-submit: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/user_metrics.py
+        - Run hourly metrics stream spark-submit: ```docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/hourly_metrics.py```
+        - Run product metrics stream spark-submit: ```docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/product_metrics.py```
+        - Run user metrics stream spark-submit: ```docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/user_metrics.py```
     - [x] Pipeline transformation tests
-        - test silver_stream : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_silver.py
-        - test bronze_stream : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_bronze.py
-        - test hourly_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics.py
-        - test product_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics.py
-        - test user_metrics   : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics.py
-        - test all from /tests/unit : docker exec -it spark-job pytest -v /opt/spark/tests/unit
+        - test silver_stream : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_silver.py```
+        - test bronze_stream : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_bronze.py```
+        - test hourly_metrics: ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics.py```
+        - test product_metrics: ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics.py```
+        - test user_metrics   : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics.py```
+        - test all from /tests/unit : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit```
     - [x] Serving Layer
-        - [x] create sql gold tables : -> bash: docker exec -i postgres psql -U data_user -d ecommerce < sql/serving/create_gold_tables.sql
-                                   -> PowerShell: Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce
-        - [x] publish hourly metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_hourly_metrics.py
-        - [x] publish product metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_product_metrics.py
-        - [x] publish user metrics into PostgreSQL. Run with docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_user_metrics.py
+        - [x] create sql gold tables : -> bash: ```docker exec -i postgres psql -U data_user -d ecommerce < sql/serving/create_gold_tables.sql```
+                                   -> PowerShell: ```Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce```
+        - [x] publish hourly metrics into PostgreSQL. Run with ```docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_hourly_metrics.py```
+        - [x] publish product metrics into PostgreSQL. Run with ```docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_product_metrics.py```
+        - [x] publish user metrics into PostgreSQL. Run with ```docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_user_metrics.py```
     - [x] Serving Layer Tests
-        - [x] integration test JDBC connection : PowerShell: docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_connection.py
-        - [x] integration test jdbc upsert : docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_upsert.py
-        - [x] unit test postgres : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_postgres.py 
-        - [x] unit test hourly_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py
-        - [x] unit test product_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py
-        - [x] unit test user_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py
+        - [x] integration test JDBC connection : PowerShell: ```docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_connection.py```
+        - [x] integration test jdbc upsert : ```docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_upsert.py```
+        - [x] unit test postgres : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_postgres.py``` 
+        - [x] unit test hourly_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py```
+        - [x] unit test product_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py```
+        - [x] unit test user_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py```
 - [x] Data modeling (dbt)
     - [x] dbt installation (docker container)
-        - Check dbt version : docker exec -it dbt dbt --version
+        - Check dbt version : ```docker exec -it dbt dbt --version```
     - [x] Define dbt project, profile & adapter (PostgreSQL)
-        - Diagnoctic dbt configuration : docker exec -it dbt dbt debug
+        - Diagnoctic dbt configuration : ```docker exec -it dbt dbt debug```
     - [x] Define dbt sources
-        - Check if dbt soucres are detected: docker exec -it dbt dbt ls
-    - Run models in folder/package : docker exec -it dbt dbt run --select folder_name
-    - Run model with its dependances : docker exec -it dbt dbt run --select "+model_name"
-    - Run dbt parsing : docker exec -it dbt dbt parse
+        - Check if dbt soucres are detected: ```docker exec -it dbt dbt ls```
+    - Run models in folder/package : ```docker exec -it dbt dbt run --select folder_name```
+    - Run model with its dependances : ```docker exec -it dbt dbt run --select "+model_name"```
+    - Run dbt parsing : ```docker exec -it dbt dbt parse```
     - [x] Staging models
         - [x] Hourly model
         - [x] Product model
@@ -76,15 +89,18 @@ Ingestion > Kafka > Spark > Data Lake > dbt > BI
         - [x] Product model
         - [x] User model
         - [x] Hourly model
-        - Run dbt tests : docker exec -it dbt dbt test --select model_name
+        - Run dbt tests : ```docker exec -it dbt dbt test --select model_name```
     - [x] Generate dbt documentation
         - [x] Product model
         - [X] User model
         - [x] Hourly model
-        - Generate dbt documentation : docker exec -it dbt dbt docs generate
-        - Run dbt docs server : docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080
+        - Generate dbt documentation : ```docker exec -it dbt dbt docs generate```
+        - Run dbt docs server : ```docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080```
 - [X] Orchestration (Airflow)
     - [x] Airflow installation (init, webserver & scheduler)
     - [x] DAG 0 : First Test as Validation DAG
-    - [ ] DAG 1 : ecommerce pipeline (Gold metrics -> PostgreSQL Serving -> dbt transformations)
+    - [x] DAG 1 : ecommerce pipeline (Gold metrics -> PostgreSQL Serving -> dbt transformations)
+        - [x] dbt task (Run dbt transformations)
+        - [ ] Postgres serving task
+        - [ ] Postgres Gold task
 - [ ] Dashboard

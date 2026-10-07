@@ -3,11 +3,12 @@ ecommerce_dbt: # Profile name
 
   outputs:
     dev:
-      type: postgres      # DB type
-      host: postgres      # Docker service name of our DB
-      user: data_user     # DB username
-      password: data_pass # DB password
-      port: 5432          # DB Port
-      dbname: ecommerce   # DB name
-      schema: analytics   # schema name for dbt objects
+      # PostgreSQL connection is provided through environment variables.
+      type: postgres                                          # DB type
+      host: "{{ env_var('POSTGRES_HOST', 'postgres') }}"      # Docker service name of our DB
+      user: "{{ env_var('POSTGRES_USER') }}"                  # DB username
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"          # DB password
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"    # DB Port convert to integer
+      dbname: "{{ env_var('POSTGRES_DB', 'ecommerce') }}"     # DB name
+      schema: analytics                                       # schema name for dbt objects
       threads: 2

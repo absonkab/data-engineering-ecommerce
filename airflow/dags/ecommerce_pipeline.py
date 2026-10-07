@@ -9,10 +9,12 @@ Airflow is responsible for orchestration only.
 The actual data processing remains implemented in Spark and dbt.
 """
 
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.providers.docker.operators.docker import DockerOperator
 
 
 with DAG(
@@ -54,14 +56,42 @@ with DAG(
         bash_command="echo 'Running Serving layer'",
     )
 
-    # ---------------------------------------------------------
-    # Task 3: Run dbt transformations and tests.
-    # ---------------------------------------------------------
-    run_dbt = BashOperator(
+    # -----------------------------------------------------------------------------
+    # Task 3: Run dbt transformations inside an isolated Docker container.
+    # -----------------------------------------------------------------------------
+    run_dbt = DockerOperator(
         task_id="run_dbt",
 
-        # Temporary command used for the first orchestration test.
-        bash_command="echo 'Running dbt'",
+        # Self-contained image containing dbt and the project.
+        image="data-engineering-ecommerce-dbt:latest",
+
+        # Run dbt against the existing project.
+        command="dbt run",
+
+        # dbt project directory inside the container.
+        working_dir="/usr/app/dbt",
+
+        # Tell dbt where profiles.yml is located.
+        environment={
+            "DBT_PROFILES_DIR": "/usr/app/dbt",
+
+            # PostgreSQL connection settings.
+            # These values come from Airflow's environment.
+            "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "postgres"),
+            "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "POSTGRES_USER": os.getenv("POSTGRES_USER"),
+            "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+            "POSTGRES_DB": os.getenv("POSTGRES_DB", "ecommerce"),
+        },
+
+        # Remove the temporary container after a successful run.
+        auto_remove="success",
+
+        # Put the temporary dbt container on the same Docker Compose network as PostgreSQL.
+        network_mode="data-engineering-ecommerce_default",
+
+        # Keep dbt output visible in Airflow logs.
+        tty=True,
     )
 
     # Task dependencies.

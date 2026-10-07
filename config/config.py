@@ -5,6 +5,12 @@ This module contains configuration shared across the different
 pipeline components.
 """
 
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
+
 # -------------------------------------------------------------------
 # Kafka configuration
 # -------------------------------------------------------------------
@@ -75,10 +81,16 @@ GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"
 # ============================================================
 # Configuration PostgreSQL
 # ============================================================
-POSTGRES_URL = "jdbc:postgresql://postgres:5432/ecommerce"
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "ecommerce")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+
+POSTGRES_URL = f"jdbc:postgresql://{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 POSTGRES_PROPERTIES = {
-    "user": "data_user",
-    "password": "data_pass",
+    "user": POSTGRES_USER,
+    "password": POSTGRES_PASSWORD,
     "driver": "org.postgresql.Driver",
 }
 

@@ -158,18 +158,27 @@ services:
         condition: service_healthy
     environment:
       # Connection to the PostgreSQL database used by Airflow to store its metadata: DAGs, tasks, runs, etc.
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://data_user:data_pass@postgres:5432/ecommerce
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW_UID: "50000" # Allows Airflow to use the correct UID inside the container.
+
+      # Airflow user configuration.
+      AIRFLOW_ADMIN_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      AIRFLOW_ADMIN_FIRSTNAME: ${AIRFLOW_ADMIN_FIRSTNAME}
+      AIRFLOW_ADMIN_LASTNAME: ${AIRFLOW_ADMIN_LASTNAME}
+      AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+
     command: >
       bash -c "
       airflow db migrate &&
       airflow users create
-      --username admin_name
-      --password admin_pass
-      --firstname Abson
-      --lastname Kab
+      --username ${AIRFLOW_ADMIN_USERNAME}
+      --password ${AIRFLOW_ADMIN_PASSWORD}
+      --firstname ${AIRFLOW_ADMIN_FIRSTNAME}
+      --lastname ${AIRFLOW_ADMIN_LASTNAME}
       --role Admin
-      --email admin@airflow.com
+      --email ${AIRFLOW_ADMIN_EMAIL}
+      || true
       "
 
 # Airflow webserver
@@ -183,7 +192,7 @@ services:
       - "8082:8080"
     environment:
       # Same metadata database as airflow-init.
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://data_user:data_pass@postgres:5432/ecommerce
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # Disables the loading of example DAGs. This keeps our interface clean.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC # Executes the DAGs using the UTC time zone.
 
@@ -208,7 +217,7 @@ services:
       - airflow-init
     environment:
       # Same metadata database as airflow-init.
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://data_user:data_pass@postgres:5432/ecommerce
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # No example DAGs.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC  # Default time zone.
 

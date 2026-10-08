@@ -122,8 +122,8 @@ services:
       - spark
     environment:
       SPARK_MASTER: spark://spark:7077
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 2G
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY}
     command: >
       /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
     volumes:
@@ -144,6 +144,103 @@ services:
       - ./tests:/opt/spark/tests
     command: >
       sleep infinity
+
+  # Bronze Streaming
+  # Reads events from Kafka and persists the raw/structured event stream into the Bronze layer.
+  bronze-stream:
+    image: data-engineering-ecommerce-spark-job
+    container_name: bronze-stream
+    depends_on:
+      - spark
+      - spark-worker
+      - kafka
+    volumes:
+      - ./lake:/lake
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark:7077
+      --conf spark.cores.max=${SPARK_STREAM_MAX_CORES}
+      --conf spark.executor.cores=${SPARK_STREAM_EXECUTOR_CORES}
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+      /opt/spark/jobs/bronze_stream.py
+
+  # Silver Streaming
+  # Reads Bronze events, validates and cleans them, then writes the resulting stream into Silver layer.
+  silver-stream:
+    image: data-engineering-ecommerce-spark-job
+    container_name: silver-stream
+    depends_on:
+      - spark
+      - spark-worker
+      - bronze-stream
+    volumes:
+      - ./lake:/lake
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark:7077
+      --conf spark.cores.max=${SPARK_STREAM_MAX_CORES}
+      --conf spark.executor.cores=${SPARK_STREAM_EXECUTOR_CORES}
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+      /opt/spark/jobs/silver_stream.py
+
+  # Gold Hourly Metrics Streaming
+  # Reads Silver events and produces hourly aggregated business metrics.
+  gold-hourly:
+    image: data-engineering-ecommerce-spark-job
+    container_name: gold-hourly
+    depends_on:
+      - spark
+      - spark-worker
+      - silver-stream
+    volumes:
+      - ./lake:/lake
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark:7077
+      --conf spark.cores.max=${SPARK_STREAM_MAX_CORES}
+      --conf spark.executor.cores=${SPARK_STREAM_EXECUTOR_CORES}
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+      /opt/spark/jobs/hourly_metrics.py
+
+
+  # Gold Product Metrics Streaming
+  # Reads Silver events and produces business metrics aggregated by product.
+  gold-product:
+    image: data-engineering-ecommerce-spark-job
+    container_name: gold-product
+    depends_on:
+      - spark
+      - spark-worker
+      - silver-stream
+    volumes:
+      - ./lake:/lake
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark:7077
+      --conf spark.cores.max=${SPARK_STREAM_MAX_CORES}
+      --conf spark.executor.cores=${SPARK_STREAM_EXECUTOR_CORES}
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+      /opt/spark/jobs/product_metrics.py
+
+
+  # Gold User Metrics Streaming
+  # Reads Silver events and produces aggregated business metrics per user.
+  gold-user:
+    image: data-engineering-ecommerce-spark-job
+    container_name: gold-user
+    depends_on:
+      - spark
+      - spark-worker
+      - silver-stream
+    volumes:
+      - ./lake:/lake
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark:7077
+      --conf spark.cores.max=${SPARK_STREAM_MAX_CORES}
+      --conf spark.executor.cores=${SPARK_STREAM_EXECUTOR_CORES}
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
+      /opt/spark/jobs/user_metrics.py
 
   # -------------------------------------------------------------------
   # AIRFLOW Services

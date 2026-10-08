@@ -22,8 +22,27 @@ You can use the provided example:
 cp .env.example .env
 ```
 Then update the values if needed.
-The `.env` file contains the PostgreSQL and Airflow configuration used by the Docker Compose services.
+The `.env` file contains a setup of configurations used by the Docker Compose services.
 
+### Spark Resource Allocation
+
+The project runs multiple Spark Structured Streaming applications simultaneously:
+
+- Bronze Streaming
+- Silver Streaming
+- Gold Hourly Metrics
+- Gold Product Metrics
+- Gold User Metrics
+
+Because these applications share the same Spark Standalone worker, Spark resources are explicitly configured to prevent a single streaming application from consuming all available CPU resources.
+
+Default local configuration:
+
+- **5 CPU cores** to the Spark worker
+- **6 GB RAM** to the Spark worker
+- **1 CPU core maximum** per streaming application
+
+This allows the five streaming pipelines to run concurrently on a local development environment.
 
 ## Project progress
 - [x] Setup infrastructure (Docker, Kafka, Spark, Postgres)
@@ -63,6 +82,10 @@ The `.env` file contains the PostgreSQL and Airflow configuration used by the Do
         - [x] unit test hourly_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py```
         - [x] unit test product_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py```
         - [x] unit test user_metrics_serving : ```docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py```
+    - [x] Create Streaming containers
+        - [x] Bronze stream
+        - [x] Silver stream
+        - [x] Gold stream (hourly & product & user)
 - [x] Data modeling (dbt)
     - [x] dbt installation (docker container)
         - Check dbt version : ```docker exec -it dbt dbt --version```
@@ -102,5 +125,4 @@ The `.env` file contains the PostgreSQL and Airflow configuration used by the Do
     - [x] DAG 1 : ecommerce pipeline (Gold metrics -> PostgreSQL Serving -> dbt transformations)
         - [x] dbt task (Run dbt transformations)
         - [ ] Postgres serving task
-        - [ ] Postgres Gold task
 - [ ] Dashboard

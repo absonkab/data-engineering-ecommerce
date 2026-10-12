@@ -50,3 +50,38 @@ data_tests:
     description: >
       Verifies the uniqueness of the user mart's business grain:
       one row per user and per time window.
+
+  - name: mart_hourly_performance_revenue_not_negative
+    description: >
+      Verifies that revenue generated during a one-hour time window
+      cannot be negative. 
+  
+  - name: mart_hourly_performance_purchases_not_negative
+    description: >
+      Verifies that the number of purchases in one-hour time window 
+      cannot be negative. 
+  
+  - name: mart_hourly_performance_purchase_rate_valid
+    description: >
+      Verifies that the purchase rate is between 0 and 1
+      in one-hour time window 
+
+  - name: mart_hourly_performance_revenue_per_purchase_valid
+    description: >
+      Verifies that the average revenue in a one-hour time window purchase
+      cannot be negative. 
+
+  - name: mart_hourly_performance_unique_key
+    description: >
+      Verifies the uniqueness of the hourly mart's business grain:
+      one row per time window.
+
+  - name: mart_hourly_performance_total_events_not_negative
+    description: >
+      Verifies that the total number of events in a one-hour time window
+      cannot be negative.
+
+  - name: mart_hourly_performance_unique_users_not_negative
+    description: > 
+      Verifies that the distinct users during a one-hour time window
+      cannot be negative.

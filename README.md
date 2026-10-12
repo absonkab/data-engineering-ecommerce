@@ -123,6 +123,7 @@ This allows the five streaming pipelines to run concurrently on a local developm
     - [x] Airflow installation (init, webserver & scheduler)
     - [x] DAG 0 : First Test as Validation DAG
     - [x] DAG 1 : ecommerce pipeline (Gold metrics -> PostgreSQL Serving -> dbt transformations)
+        - [x] Gold files check task
+        - [x] Postgres serving task : publish data into PostgreSQL
         - [x] dbt task (Run dbt transformations)
-        - [ ] Postgres serving task
 - [ ] Dashboard

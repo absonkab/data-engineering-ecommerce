@@ -178,8 +178,28 @@ with DAG(
         tty=True,
     )
 
+    # Task 4: Validate the analytics models.
+    test_dbt = DockerOperator(
+        task_id="test_dbt",
+        image= DBT_IMAGE,
+        command="dbt test",
+        working_dir="/usr/app/dbt",
+        environment={
+            "DBT_PROFILES_DIR": "/usr/app/dbt",
+            "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "postgres"),
+            "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "POSTGRES_USER": os.getenv("POSTGRES_USER"),
+            "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+            "POSTGRES_DB": os.getenv("POSTGRES_DB", "ecommerce"),
+        },
+        auto_remove="success",
+        network_mode=DOCKER_NETWORK,
+        tty=True,
+    )
+
     # Task dependencies.
     # 1. Verify Gold datasets.
     # 2. Publish them to PostgreSQL.
     # 3. Build analytics models with dbt.
-    check_gold >> run_serving >> run_dbt
+    # 4. Test dbt
+    check_gold >> run_serving >> run_dbt >> test_dbt

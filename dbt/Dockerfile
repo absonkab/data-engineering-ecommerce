@@ -17,6 +17,7 @@ WORKDIR /usr/app/dbt
 COPY dbt/dbt_project.yml .
 COPY dbt/profiles.yml .
 COPY dbt/models ./models
+COPY dbt/tests ./tests
 
 # By default, the container remains active.
 # dbt commands will be run manually using "docker exec".

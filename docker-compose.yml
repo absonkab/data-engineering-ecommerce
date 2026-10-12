@@ -335,4 +335,5 @@ services:
       - ./airflow/dags:/opt/airflow/dags            # The scheduler must have access to the same DAGs.
       - ./airflow/logs:/opt/airflow/logs            # Logs produced by the tasks.
       - /var/run/docker.sock:/var/run/docker.sock   # Gives Airflow access to the Docker daemon.
+      - ./lake:/lake
     command: scheduler

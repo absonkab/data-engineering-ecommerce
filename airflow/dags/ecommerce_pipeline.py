@@ -10,11 +10,86 @@ The actual data processing remains implemented in Spark and dbt.
 """
 
 import os
+import docker
+
 from datetime import datetime
 
 from airflow import DAG
+from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+
+# Shared Docker network used by the Compose services.
+DOCKER_NETWORK = "data-engineering-ecommerce_default"
+
+# Existing dbt image 
+DBT_IMAGE = "data-engineering-ecommerce-dbt:latest"
+
+
+def publish_gold_metrics():
+    """
+    Execute the three Serving jobs inside the existing spark-job container 
+    and its Spark environment.
+
+    """
+
+    client = docker.from_env()
+
+    try:
+        # Reuse the existing Spark job container.
+        container = client.containers.get("spark-job")
+        container.reload()
+
+        if container.status != "running":
+            raise AirflowException(
+                f"spark-job must be running. Current status: {container.status}"
+            )
+
+        # Run the three Serving jobs sequentially.
+        commands = [
+            [
+                "python3",
+                "/opt/spark/jobs/serving/publish_hourly_metrics.py",
+            ],
+            [
+                "python3",
+                "/opt/spark/jobs/serving/publish_product_metrics.py",
+            ],
+            [
+                "python3",
+                "/opt/spark/jobs/serving/publish_user_metrics.py",
+            ],
+        ]
+
+        for command in commands:
+            print(f"Executing: {' '.join(command)}")
+
+            result = container.exec_run(
+                cmd=command,
+                stdout=True,
+                stderr=True,
+                demux=True,
+            )
+
+            stdout, stderr = result.output or (None, None)
+
+            if stdout:
+                print(stdout.decode("utf-8", errors="replace"))
+
+            if stderr:
+                print(stderr.decode("utf-8", errors="replace"))
+
+            if result.exit_code != 0:
+                raise AirflowException(
+                    f"Serving job failed: {' '.join(command)} "
+                    f"(exit code: {result.exit_code})"
+                )
+
+            print(f"Successfully completed: {' '.join(command)}")
+
+    finally:
+        client.close()
 
 
 with DAG(
@@ -34,36 +109,45 @@ with DAG(
     tags=["ecommerce", "spark", "dbt", "production"],
 ) as dag:
 
-    # ---------------------------------------------------------
-    # Task 1: Generate Gold metrics with Spark.
-    # ---------------------------------------------------------
-    run_gold = BashOperator(
+    # Task 1: Check that Gold data is available.
+    # Gold is produced by independent streaming services.
+    check_gold  = BashOperator(
         task_id="run_gold",
+        bash_command="""
+            set -e
 
-        # We will replace this command with our real Spark command
-        # after validating that Airflow can execute commands
-        # inside the appropriate container.
-        bash_command="echo 'Running Gold metrics'",
+            for dataset in hourly_metrics product_metrics user_metrics; do
+                dataset_path="/lake/gold/${dataset}"
+
+                if [ ! -d "$dataset_path" ]; then
+                    echo "ERROR: Gold dataset not found: $dataset_path"
+                    exit 1
+                fi
+
+                if ! find "$dataset_path" -type f -name '*.parquet' -print -quit | grep -q .; then
+                    echo "ERROR: No Parquet files found in $dataset_path"
+                    exit 1
+                fi
+
+                echo "Gold dataset available: $dataset_path"
+            done
+        """,
     )
 
-    # ---------------------------------------------------------
-    # Task 2: Load Gold metrics into PostgreSQL.
-    # ---------------------------------------------------------
-    run_serving = BashOperator(
+
+    # Task 2: Publish Gold metrics into PostgreSQL.
+    run_serving = PythonOperator(
         task_id="run_serving",
-
-        # Temporary command used for the first orchestration test.
-        bash_command="echo 'Running Serving layer'",
+        python_callable=publish_gold_metrics,
     )
 
-    # -----------------------------------------------------------------------------
     # Task 3: Run dbt transformations inside an isolated Docker container.
-    # -----------------------------------------------------------------------------
+    # This Build the analytics models with dbt.
     run_dbt = DockerOperator(
         task_id="run_dbt",
 
         # Self-contained image containing dbt and the project.
-        image="data-engineering-ecommerce-dbt:latest",
+        image=DBT_IMAGE,
 
         # Run dbt against the existing project.
         command="dbt run",
@@ -88,12 +172,14 @@ with DAG(
         auto_remove="success",
 
         # Put the temporary dbt container on the same Docker Compose network as PostgreSQL.
-        network_mode="data-engineering-ecommerce_default",
+        network_mode=DOCKER_NETWORK,
 
         # Keep dbt output visible in Airflow logs.
         tty=True,
     )
 
     # Task dependencies.
-    # Airflow will execute: run_gold → run_serving → run_dbt
-    run_gold >> run_serving >> run_dbt
+    # 1. Verify Gold datasets.
+    # 2. Publish them to PostgreSQL.
+    # 3. Build analytics models with dbt.
+    check_gold >> run_serving >> run_dbt

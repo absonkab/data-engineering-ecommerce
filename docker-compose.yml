@@ -13,6 +13,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT}:5432"
+    volumes:
+      - ./sql/serving:/docker-entrypoint-initdb.d:ro # Automatically execute SQL initialization scripts when PostgreSQL initializes a new, empty data directory.
 
     # Verify that PostgreSQL is actually accepting connections before starting the services that depend on it.
     healthcheck:
@@ -70,7 +72,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
 
   # -------------------------------------------------------------------
-  # KAFKA Service
+  # KAFKA Services
   # -------------------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -87,6 +89,25 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    depends_on:
+      - kafka
+
+    # Wait for Kafka to accept connections, then create the topic if it's not exist.
+    command:
+      - bash
+      - -c
+      - |
+        echo "Waiting for Kafka..."
+        until kafka-topics --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+          sleep 2
+        done
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic ecommerce_events --partitions 1 --replication-factor 1
+        echo "Kafka topic ecommerce_events is ready."
+    restart: "no"
+
   # -------------------------------------------------------------------
   # DATA INGESTION Service
   # -------------------------------------------------------------------
@@ -96,7 +117,8 @@ services:
       dockerfile: ./ingestion/Dockerfile
     container_name: ingestion
     depends_on:
-      - kafka
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BROKER: kafka:9092
 
@@ -157,9 +179,12 @@ services:
     image: data-engineering-ecommerce-spark-job
     container_name: bronze-stream
     depends_on:
-      - spark
-      - spark-worker
-      - kafka
+      spark:
+        condition: service_started
+      spark-worker:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     volumes:
       - ./lake:/lake
     command: >

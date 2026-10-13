@@ -158,7 +158,12 @@ with DAG(
     start_date=datetime(2026, 1, 1),
 
     # We will trigger the pipeline manually during development.
-    schedule=None,
+    # schedule=None,
+    # Run the pipeline automatically at the beginning of every hour.
+    schedule="0 * * * *",
+
+    # Allow only one active run of this pipeline at a time.
+    max_active_runs=1,
 
     # Do not create historical DAG runs.
     catchup=False,

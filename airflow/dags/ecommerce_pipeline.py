@@ -27,6 +27,65 @@ DOCKER_NETWORK = "data-engineering-ecommerce_default"
 DBT_IMAGE = "data-engineering-ecommerce-dbt:latest"
 
 
+def CheckExistingOrCreate_gold_tables():
+    """
+    Create the PostgreSQL Gold serving tables by executing the SQL script.
+
+    """
+
+    client = docker.from_env()
+
+    try:
+        # Reuse the existing PostgreSQL container.
+        container = client.containers.get("postgres")
+        container.reload()
+
+        if container.status != "running":
+            raise AirflowException(
+                f"PostgreSQL must be running. Current status: {container.status}"
+            )
+
+        # Execute the SQL script inside the PostgreSQL container.
+        command = [
+            "psql",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            os.getenv("POSTGRES_USER"),
+            "-d",
+            os.getenv("POSTGRES_DB", "ecommerce"),
+            "-f",
+            "/docker-entrypoint-initdb.d/create_gold_tables.sql",
+        ]
+
+        print(f"Executing SQL script: {' '.join(command)}")
+
+        result = container.exec_run(
+            cmd=command,
+            stdout=True,
+            stderr=True,
+            demux=True,
+        )
+
+        stdout, stderr = result.output or (None, None)
+
+        if stdout:
+            print(stdout.decode("utf-8", errors="replace"))
+
+        if stderr:
+            print(stderr.decode("utf-8", errors="replace"))
+
+        if result.exit_code != 0:
+            raise AirflowException(
+                f"Gold table creation failed (exit code: {result.exit_code})"
+            )
+
+        print("Gold serving tables created or already available.")
+
+    finally:
+        client.close()
+
+
 def publish_gold_metrics():
     """
     Execute the three Serving jobs inside the existing spark-job container 
@@ -134,14 +193,20 @@ with DAG(
         """,
     )
 
+    # Task 2: Create the PostgreSQL Gold serving tables.
+    check_or_create_tables = PythonOperator(
+        task_id="CheckExistingOrCreate_gold_tables",
+        python_callable=CheckExistingOrCreate_gold_tables,
+    )
 
-    # Task 2: Publish Gold metrics into PostgreSQL.
+
+    # Task 3: Publish Gold metrics into PostgreSQL.
     run_serving = PythonOperator(
         task_id="run_serving",
         python_callable=publish_gold_metrics,
     )
 
-    # Task 3: Run dbt transformations inside an isolated Docker container.
+    # Task 4: Run dbt transformations inside an isolated Docker container.
     # This Build the analytics models with dbt.
     run_dbt = DockerOperator(
         task_id="run_dbt",
@@ -178,7 +243,7 @@ with DAG(
         tty=True,
     )
 
-    # Task 4: Validate the analytics models.
+    # Task 5: Validate the analytics models.
     test_dbt = DockerOperator(
         task_id="test_dbt",
         image= DBT_IMAGE,
@@ -197,9 +262,10 @@ with DAG(
         tty=True,
     )
 
-    # Task dependencies.
-    # 1. Verify Gold datasets.
-    # 2. Publish them to PostgreSQL.
-    # 3. Build analytics models with dbt.
-    # 4. Test dbt
-    check_gold >> run_serving >> run_dbt >> test_dbt
+    # Task dependencies:
+    # 1. Verify that Gold datasets are available.
+    # 2. Create the PostgreSQL serving tables.
+    # 3. Publish Gold metrics to PostgreSQL.
+    # 4. Build analytics models with dbt.
+    # 5. Validate the dbt models.
+    check_gold >> check_or_create_tables >> run_serving >> run_dbt >> test_dbt

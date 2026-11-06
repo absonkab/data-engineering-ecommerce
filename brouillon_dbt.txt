@@ -1,0 +1,481 @@
+-----------------------------------------------------------------------------------------------------------------------------------
+Mini-cours : Gold vs Serving vs dbt
+-----------------------------------------------------------------------------------------------------------------------------------
+
+Il y a trois concepts différents ici.
+
+Gold
+
+Notre Gold est produit par Spark.
+
+Son objectif est de transformer les données Silver en métriques métier.
+
+Par exemple :
+
+Silver -> Spark -> gold_product_metrics
+
+Spark fait notamment :
+
+agrégation temporelle ;
+calcul des événements ;
+calcul du revenu ;
+utilisateurs uniques ;
+conversion.
+
+Donc Gold = data product métier produit par notre pipeline Spark.
+
+Serving
+
+Ensuite nous avons publié ces données dans PostgreSQL.
+
+Pourquoi ?
+
+Parce qu'un dashboard ou une API n'a pas forcément envie d'aller lire directement des fichiers Parquet dans /lake/gold.
+
+PostgreSQL fournit une interface facilement consommable :
+
+Gold Parquet -> PostgreSQL -> consommateurs
+
+Donc Serving = exposition des données pour les consommateurs.
+
+Et dbt ?
+
+dbt intervient à un niveau légèrement différent.
+
+Son rôle principal est de gérer les transformations analytiques SQL.
+
+Il va nous permettre de dire :
+
+« À partir de mes données disponibles dans PostgreSQL, je veux construire des modèles analytiques propres, testés, documentés et dépendants les uns des autres. »
+
+Par exemple :
+
+gold_product_metrics -> dbt staging -> dbt intermediate -> dbt marts -> Dashboard
+
+Une notion très importante : le Data Warehouse / Analytical Layer
+
+C'est ici qu'il faut être précis pour ton apprentissage.
+
+Dans une architecture classique, dbt est souvent placé dans le Data Warehouse :
+
+Sources -> Data Warehouse -> dbt -> Analytical models -> BI
+
+Exemples de warehouses :
+
+Snowflake
+BigQuery
+Databricks SQL
+Redshift
+
+Dans notre projet local, PostgreSQL joue temporairement ce rôle de plateforme SQL analytique.
+
+Et c'est intéressant pour ton parcours parce que la logique dbt que nous allons apprendre sera largement transférable à Snowflake, que tu veux justement apprendre ensuite.
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours : le concept de "grain"
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+C'est probablement l'une des notions les plus importantes pour toi en Data Engineering / Analytics Engineering.
+
+Le grain répond à : « Que représente exactement une ligne de cette table ? »
+
+gold_hourly_metrics
+Grain : une fenêtre temporelle d'une heure. Clé : window_start + window_end
+
+Donc :
+16h -> 17h = une ligne
+17h -> 18h = une ligne
+
+gold_product_metrics
+Grain : un produit pendant une fenêtre horaire. Clé : window_start + window_end + product_id
+
+Donc :
+Produit 9 + 16h-17h
+Produit 11 + 16h-17h
+Produit 16 + 16h-17h
+...
+
+gold_user_metrics
+Grain : un utilisateur pendant une fenêtre horaire. Clé : window_start + window_end + user_id
+
+Pourquoi le grain est crucial avec dbt ?
+Parce qu'une grosse partie des problèmes analytiques viennent d'un mauvais grain.
+
+Imagine qu'on fasse :
+
+SELECT
+    product_id,
+    SUM(revenue)
+FROM gold_product_metrics
+GROUP BY product_id;
+
+Ça répond à Quel est le revenu total par produit sur toute la période ?
+
+Mais si on fait :
+
+SELECT
+    window_start,
+    SUM(revenue)
+FROM gold_product_metrics
+GROUP BY window_start;
+
+On répond à Quel est le revenu par heure ?
+
+Et si on fait :
+
+SELECT
+    product_id,
+    window_start,
+    SUM(revenue)
+FROM gold_product_metrics
+GROUP BY product_id, window_start;
+
+On revient pratiquement au grain original.
+
+Le grain détermine donc comment on agrège les données.
+
+---------------------------------------------------------------------------------------------------------------------------------
+Maintenant : pourquoi dbt ?
+--------------------------------------------------------------------------------------------------------------------------------
+
+On a actuellement :
+
+Spark Gold -> PostgreSQL -> tables prêtes à consommer
+
+Mais supposons que le métier demande :
+
+Dashboard Executive :
+    CA total
+    Nombre de commandes
+    Panier moyen
+    Utilisateurs actifs
+Dashboard Product :
+    CA par produit
+    Top produits
+    Conversion
+Dashboard User :
+    CA par utilisateur
+    Nombre d'achats
+    Produits distincts
+
+On pourrait écrire directement des requêtes SQL dans le dashboard.
+
+Mais ça devient rapidement :
+
+Dashboard
+   ├── SQL 1
+   ├── SQL 2
+   ├── SQL 3
+   ├── SQL 4
+   └── SQL 5
+
+Et la logique métier se retrouve dispersée.
+
+Avec dbt :
+
+PostgreSQL -> dbt -> modèles analytiques -> Dashboard
+
+Les transformations sont :
+    versionnées avec Git ;
+    testables ;
+    documentables ;
+    réutilisables ;
+    organisées en dépendances.
+
+C'est là que dbt devient intéressant.
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours dbt - les 4 notions fondamentales
+---------------------------------------------------------------------------------------------------------------------------------------
+
+1. Qu'est-ce qu'un projet dbt ?
+
+Un projet dbt est un projet de transformation de données organisé autour de fichiers SQL, de configuration, de tests et de documentation.
+« dbt permet de structurer, versionner, tester et documenter les transformations SQL dans un projet Data. »
+
+Conceptuellement :
+
+dbt project
+│
+├── models/       <- transformations SQL
+├── tests/        <- contrôles qualité
+├── macros/       <- logique SQL réutilisable
+├── seeds/        <- données statiques
+├── snapshots/    <- historisation
+└── dbt_project.yml
+
+Le fichier central est : dbt_project.yml
+Il indique notamment à dbt comment s'appelle le projet et où trouver les différents éléments.
+
+
+2. source : d'où viennent mes données ?
+
+Une source dbt représente une table qui existe déjà dans notre système de données.
+
+Dans notre cas :
+
+PostgreSQL
+│
+├── gold_hourly_metrics
+├── gold_product_metrics
+└── gold_user_metrics
+
+Ces tables existent déjà.
+
+On va donc les déclarer comme sources dans dbt.
+
+Conceptuellement :
+
+sources:
+  - name: serving
+    tables:
+      - name: gold_hourly_metrics
+      - name: gold_product_metrics
+      - name: gold_user_metrics
+
+Puis dbt pourra référencer :
+{{ source('serving', 'gold_hourly_metrics') }}
+
+Pourquoi ne pas écrire simplement :
+SELECT *
+FROM gold_hourly_metrics
+
+Parce que source() permet à dbt de connaître explicitement l'origine des données.
+
+Cela permet notamment de construire le lineage et d'ajouter des contrôles sur les sources.
+
+
+3. model : une transformation gérée par dbt
+
+Un model dbt est généralement un fichier SQL.
+
+Par exemple :
+models/staging/stg_product_metrics.sql
+
+avec :
+
+SELECT
+    product_id,
+    window_start,
+    window_end,
+    revenue
+FROM ...
+
+dbt va transformer ce SQL en objet dans PostgreSQL selon la materialization choisie.
+
+Par exemple :
+
+SQL dbt -> table PostgreSQL
+
+ou : SQL dbt -> view PostgreSQL
+
+C'est une distinction très importante.
+
+
+4. ref() : la notion clé de dbt 
+
+« ref() permet de référencer un autre modèle dbt et permet à dbt de comprendre les dépendances entre les modèles 
+afin de construire le lineage et d'exécuter les transformations dans le bon ordre. »
+
+Imaginons :
+stg_product_metrics -> int_product_metrics -> mart_product_performance
+
+Dans le dernier modèle, on ne va pas écrire :
+
+FROM int_product_metrics
+
+On utilise :
+
+FROM {{ ref('int_product_metrics') }}
+
+dbt comprend alors :
+
+mart_product_performance dépend de int_product_metrics.
+
+Il peut donc construire automatiquement le DAG :
+
+source -> staging -> intermediate -> mart
+
+C'est l'un des concepts les plus importants de dbt.
+
+Et attention à une distinction importante :
+source() ≠ ref()
+
+| Fonction | Sert à                                     |
+| -------- | ------------------------------------------ |
+| source() | référencer une table externe au projet dbt |
+| ref()    | référencer un autre modèle dbt             |
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+profiles.yml : comment dbt se connecte à PostgreSQL ?
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Le projet dbt contient la logique de transformation, mais dbt doit savoir : « Sur quelle base dois-je exécuter mes modèles ? »
+
+C'est le rôle du profile.
+
+Conceptuellement : dbt_project.yml --projet--> dbt --connexion--> profiles.yml ----> PostgreSQL
+
+Un profile contient notamment : host, port, user, password, database, schema
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours — dbt_project.yml
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+dbt_project.yml est le fichier de configuration du projet dbt.
+
+Il ne contient pas les informations de connexion à PostgreSQL. Ça, c'est profiles.yml.
+
+On peut retenir :
+dbt_project.yml → "Comment est organisé mon projet dbt ?"
+profiles.yml    → "Où est ma base de données ?"
+
+Les deux fichiers
+dbt/
+│
+├── dbt_project.yml  <- configuration du projet
+├── profiles.yml     <- connexion PostgreSQL
+│
+└── models/          <- nos transformations SQL
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+Materialization
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Elle indique à dbt comment matérialiser le résultat d'un modèle dans la base.
+
+Les principales sont : view, table, incremental, ephemeral
+
+Quand on utilise dans  dbt_project.yml: +materialized: view
+
+Et si nous avons : models/staging/stg_product_metrics.sql
+
+dbt créera une VIEW PostgreSQL correspondante.
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours — source()
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Dans notre architecture, les tables :
+
+public.gold_hourly_metrics
+public.gold_product_metrics
+public.gold_user_metrics
+
+existent déjà dans PostgreSQL. Elles ne sont donc pas créées par dbt.
+
+On les déclare comme sources externes :
+
+PostgreSQL
+└── public
+    ├── gold_hourly_metrics   ← source dbt
+    ├── gold_product_metrics  ← source dbt
+    └── gold_user_metrics     ← source dbt
+
+Puis dans un modèle dbt, au lieu d'écrire :
+
+SELECT *
+FROM public.gold_hourly_metrics
+
+on écrira :
+
+SELECT *
+FROM {{ source('serving', 'gold_hourly_metrics') }}
+
+L'intérêt est important :
+
+dbt connaît l'origine des données ;
+dbt construit le lineage ;
+les sources peuvent être testées ;
+on évite de hardcoder les noms de tables partout ;
+c'est la manière standard de connecter dbt à des tables existantes.
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours — pourquoi une couche staging ?
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Notre Serving contient actuellement :
+
+public.gold_hourly_metrics
+public.gold_product_metrics
+public.gold_user_metrics
+
+Ces tables sont déjà utilisables, mais elles viennent d'un traitement Spark. dbt va nous permettre de construire une couche SQL propre au-dessus.
+
+La couche Staging sert généralement à :
+
+standardiser les noms ;
+sélectionner les colonnes utiles ;
+corriger de petites incohérences de présentation ;
+effectuer des transformations simples ;
+fournir une interface propre aux couches suivantes.
+
+On évite normalement d'y mettre de la logique métier complexe.
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+source() vs ref() — distinction fondamentale
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+C'est une distinction vraiment à maîtriser.
+
+source() pour référencer une table qui existe en dehors de dbt : {{ source('serving', 'gold_hourly_metrics') }}
+
+Dans notre cas : Spark -> PostgreSQL -> gold_hourly_metrics -> source()
+
+ref() pour référencer un autre modèle dbt : {{ ref('stg_hourly_metrics') }}
+
+Par exemple, plus tard : source -> stg_hourly_metrics -> int_hourly_metrics -> fct_hourly_metrics
+
+Le modèle intermédiaire pourrait écrire :
+
+SELECT *
+FROM {{ ref('stg_hourly_metrics') }}
+
+dbt comprend alors automatiquement :
+
+stg_hourly_metrics -> int_hourly_metrics
+
+C'est ce qui permet à dbt de construire le DAG et le lineage.
+
+Tu peux retenir simplement :
+source() = données qui entrent dans dbt.
+ref() = modèle dbt qui dépend d'un autre modèle dbt.
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours - tests dbt
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+Un test dbt est simplement une assertion : « Cette propriété doit toujours être vraie pour mes données. »
+Un test dbt répond à une question du type : « Est-ce que cette donnée respecte bien la règle attendue ? »
+
+Il existe notamment :
+    - not_null -> une colonne ne doit pas contenir de NULL
+    - unique -> chaque valeur d'une colonne doit être unique
+    - accepted_values -> une colonne ne doit contenir que certaines valeurs
+    - tests SQL personnalisés -> pour les règles métier plus complexes
+
+Par exemple :
+tests:
+  - not_null
+signifie :aucune valeur NULL n'est autorisée.
+
+tests:
+  - unique
+signifie :aucune valeur dupliquée n'est autorisée.
+
+SELECT *
+FROM analytics.mart_product_performance
+WHERE revenue < 0
+
+Si elle retourne : 0 lignes -> le test passe.
+Si elle retourne n lignes : n produits avec revenue < 0 -> le test échoue.
+
+dbt exécute alors automatiquement les requêtes SQL nécessaires pour vérifier ces contraintes.
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+Mini-cours — pourquoi documenter avec dbt ?
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+La documentation dbt permet de décrire :
+les modèles ;
+les colonnes ;
+le rôle de chaque couche ;
+les sources ;
+les relations entre les modèles.
+Et surtout, dbt construit automatiquement le lineage à partir de source() et ref().
+-----------------------------------------------------------------------------------------------------------------------------------------------------

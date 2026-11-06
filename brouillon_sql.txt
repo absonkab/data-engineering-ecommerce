@@ -1,0 +1,35 @@
+SELECT *
+FROM gold_hourly_metrics
+ORDER BY window_start;
+
+SELECT *
+FROM gold_product_metrics
+ORDER BY window_start, product_id
+LIMIT 10;
+
+SELECT *
+FROM gold_user_metrics
+ORDER BY window_start, user_id
+LIMIT 10;
+
+SELECT
+    MIN(window_start) AS first_window,
+    MAX(window_end) AS last_window,
+    SUM(total_events) AS total_events,
+    SUM(purchases) AS purchases,
+    SUM(revenue) AS revenue
+FROM gold_hourly_metrics;
+
+SELECT
+    COUNT(*) AS rows,
+    COUNT(DISTINCT product_id) AS products,
+    SUM(revenue) AS revenue,
+    SUM(purchases) AS purchases
+FROM gold_product_metrics;
+
+SELECT
+    COUNT(*) AS rows,
+    COUNT(DISTINCT user_id) AS users,
+    SUM(revenue) AS revenue,
+    SUM(purchases) AS purchases
+FROM gold_user_metrics;

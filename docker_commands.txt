@@ -1,0 +1,87 @@
+Create the topic kafka: docker exec kafka kafka-topics --create --topic ecommerce_events --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+Check the topic: docker exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ecommerce_events --from-beginning
+Check the topic state : docker exec kafka kafka-topics --describe --topic ecommerce_events --bootstrap-server localhost:9092
+lancer spark-submit bronze: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/bronze_stream.py
+lancer spark-submit silver: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/silver_stream.py
+lancer spark-submit hourly: docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/hourly_metrics.py
+lancer spark-submit product : docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/product_metrics.py
+lancer spark-submit user : docker exec spark-job /opt/spark/bin/spark-submit --master spark://spark:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark/jobs/user_metrics.py
+
+check Bronze data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); df=spark.read.parquet('/lake/bronze'); print('Bronze rows:', df.count()); df.show(5, truncate=False); spark.stop()"
+check Silver data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); df=spark.read.parquet('/lake/silver'); print('Silver rows:', df.count()); df.show(5, truncate=False); spark.stop()"
+check hourly gold data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); df=spark.read.parquet('/lake/gold/hourly_metrics'); print('Hourly Gold rows:', df.count()); df.show(5, truncate=False); spark.stop()"
+check product gold data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); df=spark.read.parquet('/lake/gold/product_metrics'); print('Product Gold rows:', df.count()); df.show(5, truncate=False); spark.stop()"
+check user gold data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); df=spark.read.parquet('/lake/gold/user_metrics'); print('user Gold rows:', df.count()); df.show(5, truncate=False); spark.stop()"
+Count gold data : docker exec spark-job python3 -c "from pyspark.sql import SparkSession; spark=SparkSession.builder.getOrCreate(); print('Hourly:', spark.read.parquet('/lake/gold/hourly_metrics').count()); print('Product:', spark.read.parquet('/lake/gold/product_metrics').count()); print('User:', spark.read.parquet('/lake/gold/user_metrics').count()); spark.stop()"
+
+unit test silver_stream : docker exec -it spark-job pytest -v /opt/spark/tests/test_silver.py
+unit test bronze_stream : docker exec -it spark-job pytest -v /opt/spark/tests/test_bronze.py
+unit test hourly_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/test_hourly_metrics.py
+unit test product_metrics: docker exec -it spark-job pytest -v /opt/spark/tests/test_product_metrics.py
+unit test user_metrics   : docker exec -it spark-job pytest -v /opt/spark/tests/test_user_metrics.py
+unit test all from /tests: docker exec -it spark-job pytest -v /opt/spark/tests/unit
+unit test postgres : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_postgres.py 
+unit test hourly_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_hourly_metrics_serving.py
+unit test product_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_product_metrics_serving.py
+unit test user_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py
+integration test JDBC connection : PowerShell: docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_connection.py
+integration test jdbc upsert : docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_upsert.py
+
+create sql gold tables : -> bash: docker exec -i postgres psql -U data_user -d ecommerce < sql/serving/create_gold_tables.sql
+                            -> PowerShell: Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce
+Verify postgres JDBC jar is present : PowerShell : docker exec -it spark-job ls -lh /opt/spark/jars/postgresql-42.7.8.jar
+Verify spark see the driver : PowerShell : docker exec -it spark-job bash -c "ls /opt/spark/jars/ | grep postgresql"
+publish hourly_metrics data into PostgreSQL : docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_hourly_metrics.py
+publish product_metrics data into PostgreSQL: docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_product_metrics.py
+publish user_metrics data into PostgreSQL : docker exec -it spark-job python3 /opt/spark/jobs/serving/publish_user_metrics.py
+
+Check dbt version : docker exec -it dbt dbt --version
+Diagnoctic dbt configuration : docker exec -it dbt dbt debug
+Check if dbt results are OK : docker exec -it dbt dbt ls
+List dbt tests : docker exec dbt dbt ls --resource-type test
+Run hourly_metrics staging model : docker exec -it dbt dbt run --select stg_hourly_metrics
+Run models in folder/package : docker exec -it dbt dbt run --select folder_name
+Run model with its dependances : docker exec -it dbt dbt run --select "+model_name"
+Run product_metrics intermediate model : docker exec -it dbt dbt run --select int_product_metrics
+Run dbt parsing : docker exec -it dbt dbt parse
+Run dbt tests : docker exec -it dbt dbt test --select model_name
+Generate dbt documentation : docker exec -it dbt dbt docs generate
+Run dbt docs server : docker exec -it dbt dbt docs serve --host 0.0.0.0 --port 8080
+
+check if docker provider is already installed on Airflow : docker exec -it airflow-scheduler airflow providers list | Select-String Docker
+Exact dbt image name build by docker compose: docker images --format "{{.Repository}}:{{.Tag}}" | Select-String dbt
+Check if Docker CLI is available in Airflow container :  docker exec -it airflow-scheduler docker --version
+Check if Airflow can communicate with Docker daemon : docker exec -it airflow-scheduler docker info
+Check if Airflow charge files without errors : docker exec airflow-scheduler airflow dags list-import-errors
+List Airflow dags : docker exec airflow-scheduler airflow dags list
+List Airflow dag tasks : docker exec airflow-scheduler airflow tasks list file_name
+
+test :
+from pyspark.sql import functions as F
+
+silver = spark.read.parquet("/lake/silver")
+gold = spark.read.parquet("/lake/gold/product_metrics")
+
+
+Nettoyer un le contenu d'un dossier: Remove-Item -Recurse -Force .\chemin\acces\dossier\*
+
+
+Notre PostgreSQL contient 3 data products Gold :
+
+Table	              Grain	                            
+gold_hourly_metrics	1 ligne / heure
+gold_product_metrics	1 ligne / produit / heure
+gold_user_metrics	1 ligne / utilisateur / heure
+
+Le grain est une notion importante 
+
+Par exemple : gold_product_metrics -> une ligne représente un produit pendant une fenêtre horaire donnée.
+
+La clé primaire le confirme : (window_start, window_end, product_id)
+
+Donc :
+
+Produit 101 + 10h00-11h00 -> 1 ligne
+Produit 101 + 11h00-12h00 -> 1 ligne
+Produit 102 + 10h00-11h00 -> 1 ligne
+

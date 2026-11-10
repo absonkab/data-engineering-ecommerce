@@ -9,7 +9,7 @@ from pyspark.sql.types import (
 from datetime import datetime
 from decimal import Decimal
 import time
-from jobs.serving.publish_hourly_metrics import prepare_hourly_metrics, write_to_staging, upsert_to_postgres, cleanup_staging
+from jobs.serving.publish_hourly_metrics import prepare_hourly_metrics, write_to_staging, cleanup_staging
 
 
 # PostgreSQL Configuration 
@@ -89,7 +89,7 @@ try:
 
     print("\n=== WRITING TO STAGING ===")
 
-    write_to_staging(prepared_df)
+    write_to_staging(prepared_df, STAGING_TABLE)
 
     print("STAGING_WRITE_OK")
 
@@ -183,7 +183,7 @@ try:
 
         # Staging cleanup
 
-        cleanup_staging(spark)
+        cleanup_staging(spark, STAGING_TABLE)
 
         print("\nSTAGING_CLEANUP_OK")
 

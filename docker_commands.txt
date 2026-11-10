@@ -26,6 +26,7 @@ unit test product_metrics_serving : docker exec -it spark-job pytest -v /opt/spa
 unit test user_metrics_serving : docker exec -it spark-job pytest -v /opt/spark/tests/unit/test_user_metrics_serving.py
 integration test JDBC connection : PowerShell: docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_connection.py
 integration test jdbc upsert : docker exec -it spark-job python3 /opt/spark/tests/integration/test_jdbc_upsert.py
+integration test snowflake export : docker compose exec spark-job pytest tests/unit/test_snowflake_export.py -v
 
 create sql gold tables : -> bash: docker exec -i postgres psql -U data_user -d ecommerce < sql/serving/create_gold_tables.sql
                             -> PowerShell: Get-Content sql/serving/create_gold_tables.sql | docker exec -i postgres psql -U data_user -d ecommerce
@@ -55,6 +56,9 @@ Check if Airflow can communicate with Docker daemon : docker exec -it airflow-sc
 Check if Airflow charge files without errors : docker exec airflow-scheduler airflow dags list-import-errors
 List Airflow dags : docker exec airflow-scheduler airflow dags list
 List Airflow dag tasks : docker exec airflow-scheduler airflow tasks list file_name
+
+Execute Snowflake export script : docker compose exec spark-job python3 /opt/spark/jobs/export_gold_to_snowflake.py
+Check files : docker compose exec spark-job find /lake/snowflake_export -type f
 
 test :
 from pyspark.sql import functions as F

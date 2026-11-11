@@ -79,9 +79,7 @@ GOLD_PATH = "/lake/gold"
 GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"
 
 # Gold Paths for Snowflake export
-GOLD_HOURLY_SNOWFLAKE_EXPORT_PATH = "/lake/snowflake_export/hourly_metrics"
-GOLD_PRODUCT_SNOWFLAKE_EXPORT_PATH = "/lake/snowflake_export/product_metrics"
-GOLD_USER_SNOWFLAKE_EXPORT_PATH = "/lake/snowflake_export/user_metrics"
+SNOWFLAKE_EXPORT_PATH = "/lake/snowflake_export"
 
 # ============================================================
 # Configuration PostgreSQL

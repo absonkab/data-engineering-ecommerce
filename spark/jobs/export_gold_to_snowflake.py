@@ -25,9 +25,7 @@ from utils.spark_session import create_spark_session
 
 from config.config import (
     GOLD_PATH,
-    GOLD_HOURLY_SNOWFLAKE_EXPORT_PATH,
-    GOLD_PRODUCT_SNOWFLAKE_EXPORT_PATH,
-    GOLD_USER_SNOWFLAKE_EXPORT_PATH,
+    SNOWFLAKE_EXPORT_PATH
 )
 
 # Logging configuration
@@ -48,15 +46,15 @@ logger = logging.getLogger(__name__)
 EXPORT_DATASETS = {
     "hourly_metrics": {
         "source": os.path.join(GOLD_PATH, "hourly_metrics"),
-        "destination": GOLD_HOURLY_SNOWFLAKE_EXPORT_PATH,
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "hourly_metrics")
     },
     "product_metrics": {
         "source": os.path.join(GOLD_PATH, "product_metrics"),
-        "destination": GOLD_PRODUCT_SNOWFLAKE_EXPORT_PATH,
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "product_metrics"),
     },
     "user_metrics": {
         "source": os.path.join(GOLD_PATH, "user_metrics"),
-        "destination": GOLD_USER_SNOWFLAKE_EXPORT_PATH,
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "user_metrics"),
     },
 }
 

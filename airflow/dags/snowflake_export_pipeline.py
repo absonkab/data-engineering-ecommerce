@@ -193,7 +193,9 @@ with DAG(
     start_date=datetime(2026, 1, 1),
 
     # Manual execution during development
-    schedule=None,
+    #schedule=None,
+    # Run the pipeline automatically at the beginning of every hour.
+    schedule="0 * * * *",
 
     # Only one active execution at a time
     max_active_runs=1,

@@ -1,0 +1,18 @@
+ecommerce_dbt_snowflake: # must match exactely to the profile defined in dbt_project.yml
+  target: dev
+
+  outputs:
+    dev:
+      type: snowflake
+
+      # Snowflake uses the Snowsight session account and user.
+      account: "not needed"
+      user: "not needed"
+
+      # Contexte Snowflake
+      role: ACCOUNTADMIN        # Snowflake account role
+      database: ECOMMERCE_DB    # Snowflake Database name
+      schema: DBT_DEV           # dev shema reference
+      warehouse: ECOMMERCE_WH   # warehouse to use
+
+      threads: 2

@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw e-commerce metrics datasets loaded/ingested from Spark Gold Parquet exports into Snowflake.
+
+    database: ECOMMERCE_DB
+    schema: RAW
+
+    tables:
+      - name: RAW_HOURLY_METRICS
+        description: >
+          E-commerce metrics aggregated by one-hour time window.
+
+      - name: RAW_PRODUCT_METRICS
+        description: >
+          E-commerce metrics aggregated by product and one-hour time window.
+
+      - name: RAW_USER_METRICS
+        description: >
+          E-commerce metrics aggregated by user and one-hour time window.

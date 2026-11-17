@@ -67,7 +67,7 @@ SELECT
         WHEN views > 0
         THEN revenue / views
         ELSE 0.0
-    END AS revenue_per_view
+    END AS revenue_per_view,
 
     -- Average number of events generated per unique user.
     -- unique_users is an approximate distinct count calculated by Spark.

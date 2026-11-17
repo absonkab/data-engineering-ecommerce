@@ -46,7 +46,7 @@ SELECT
         WHEN purchases > 0
         THEN revenue / purchases
         ELSE 0.0
-    END AS revenue_per_purchase
+    END AS revenue_per_purchase,
 
     -- Average number of events per estimated unique user
     -- within the hourly time window.

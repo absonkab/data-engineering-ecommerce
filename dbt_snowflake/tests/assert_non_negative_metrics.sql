@@ -21,7 +21,7 @@ WITH metric_checks AS (
         metric_name,
         metric_value
 
-    FROM int_hourly_metrics
+    FROM {{ ref('int_hourly_metrics') }}
 
     UNPIVOT (
         metric_value FOR metric_name IN (
@@ -51,7 +51,7 @@ WITH metric_checks AS (
         metric_name,
         metric_value
 
-    FROM int_product_metrics
+    FROM {{ ref('int_product_metrics') }}
 
     UNPIVOT (
         metric_value FOR metric_name IN (
@@ -86,7 +86,7 @@ WITH metric_checks AS (
         metric_name,
         metric_value
 
-    FROM int_user_metrics
+    FROM {{ ref('int_user_metrics') }}
 
     UNPIVOT (
         metric_value FOR metric_name IN (

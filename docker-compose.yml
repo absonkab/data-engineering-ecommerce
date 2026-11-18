@@ -79,6 +79,9 @@ services:
       # Mount RSA keys as read-only for secure authentication
       - ./secrets/snowflake:/run/secrets/snowflake:ro
 
+      # Share the local data lake with the Snowflake runtime.
+      - ./lake:/lake
+
     environment:
       DBT_PROFILES_DIR: /usr/app/dbt_snowflake/runtime
       SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}

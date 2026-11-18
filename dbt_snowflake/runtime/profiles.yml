@@ -1,0 +1,24 @@
+ecommerce_dbt_snowflake:
+  target: dev
+
+  outputs:
+    dev:
+      type: snowflake
+
+      # Snowflake account identifier
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+
+      # Technical service account
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+
+      # Authentication using RSA private key
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+
+      # Snowflake execution context
+      role: ECOMMERCE_PIPELINE_ROLE
+      database: ECOMMERCE_DB
+      schema: DBT_PIPELINE
+      warehouse: ECOMMERCE_WH
+
+      threads: 2

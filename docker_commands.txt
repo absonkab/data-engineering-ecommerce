@@ -89,3 +89,16 @@ Produit 101 + 10h00-11h00 -> 1 ligne
 Produit 101 + 11h00-12h00 -> 1 ligne
 Produit 102 + 10h00-11h00 -> 1 ligne
 
+Snowflake-dbt:
+Générer une clé privée 2048-bit RSA pour etablir la connexion entre snowflake et notre env local:
+    New-Item -ItemType Directory -Force -Path "secrets\snowflake"
+    python -c "from cryptography.hazmat.primitives.asymmetric import rsa; from cryptography.hazmat.primitives import serialization; from pathlib import Path; p=Path('secrets/snowflake'); key=rsa.generate_private_key(public_exponent=65537,key_size=2048); (p/'rsa_key.p8').write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption())); (p/'rsa_key.pub').write_bytes(key.public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo)); print('RSA key pair generated successfully.')"
+check dbt service installation: docker compose exec dbt-snowflake dbt --version
+check file access : docker compose exec dbt-snowflake ls -la
+test the connexion to snowflake: docker compose exec dbt-snowflake dbt debug --target dev
+check models :  docker compose exec dbt-snowflake dbt parse
+                docker compose exec dbt-snowflake dbt ls --resource-type model
+                docker compose exec dbt-snowflake dbt ls --resource-type test
+run dbt-snowflake from docker: docker compose exec dbt-snowflake dbt run --target dev
+run tests: docker compose exec dbt-snowflake dbt test --target dev
+run doc generation: docker compose exec dbt-snowflake dbt docs generate --target dev

@@ -62,6 +62,31 @@ services:
     command: >
       sleep infinity
 
+  # ----------------------------------------------------------------------
+  # Dedicated dbt runtime for Snowflake transformations
+  # ----------------------------------------------------------------------
+  dbt-snowflake:
+    build:
+      context: .
+      dockerfile: ./dbt_snowflake/Dockerfile
+    container_name: dbt-snowflake
+    working_dir: /usr/app/dbt_snowflake
+
+    volumes:
+      # Mount the Snowflake dbt project
+      - ./dbt_snowflake:/usr/app/dbt_snowflake
+
+      # Mount RSA keys as read-only for secure authentication
+      - ./secrets/snowflake:/run/secrets/snowflake:ro
+
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt_snowflake/runtime
+      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
+      SNOWFLAKE_USER: ${SNOWFLAKE_USER}
+      SNOWFLAKE_PRIVATE_KEY_PATH: ${SNOWFLAKE_PRIVATE_KEY_PATH}
+
+    command: sleep infinity
+
   # -------------------------------------------------------------------
   # Zookeeper Service
   # -------------------------------------------------------------------

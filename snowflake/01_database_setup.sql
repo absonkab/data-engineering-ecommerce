@@ -1,0 +1,33 @@
+USE ROLE ACCOUNTADMIN;
+USE DATABASE ECOMMERCE_DB;
+USE WAREHOUSE ECOMMERCE_WH;
+
+-- Create a database for our learning project
+CREATE DATABASE IF NOT EXISTS ECOMMERCE_DB;
+
+-- Create a schema for raw source data
+CREATE SCHEMA IF NOT EXISTS ECOMMERCE_DB.RAW;
+
+-- Create a schema for dbt transformations
+CREATE SCHEMA IF NOT EXISTS DBT_DEV;
+
+-- Create Schema for staging models
+CREATE SCHEMA IF NOT EXISTS DBT_DEV_STAGING;
+
+-- Create Schema intermediate transformations 
+CREATE SCHEMA IF NOT EXISTS DBT_DEV_INTERMEDIATE;
+
+-- Create Schema for final analytic tables
+CREATE SCHEMA IF NOT EXISTS DBT_DEV_MARTS;
+
+-- Create a small warehouse for our exercises
+CREATE WAREHOUSE IF NOT EXISTS ECOMMERCE_WH
+    WAREHOUSE_SIZE = 'XSMALL'
+    AUTO_SUSPEND = 60
+    AUTO_RESUME = TRUE
+    INITIALLY_SUSPENDED = TRUE;
+
+
+SHOW DATABASES;
+SHOW SCHEMAS IN DATABASE ECOMMERCE_DB;
+SHOW WAREHOUSES;

@@ -25,7 +25,8 @@ from utils.spark_session import create_spark_session
 
 from config.config import (
     GOLD_PATH,
-    SNOWFLAKE_EXPORT_PATH
+    SNOWFLAKE_EXPORT_PATH,
+    EXPORT_DATASETS
 )
 
 # Logging configuration
@@ -36,27 +37,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-# Dataset configuration
-
-# Centralizes the source and destination paths of each dataset.
-# This avoids duplicating path definitions throughout the job.
-
-EXPORT_DATASETS = {
-    "hourly_metrics": {
-        "source": os.path.join(GOLD_PATH, "hourly_metrics"),
-        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "hourly_metrics")
-    },
-    "product_metrics": {
-        "source": os.path.join(GOLD_PATH, "product_metrics"),
-        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "product_metrics"),
-    },
-    "user_metrics": {
-        "source": os.path.join(GOLD_PATH, "user_metrics"),
-        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "user_metrics"),
-    },
-}
 
 
 # Export function

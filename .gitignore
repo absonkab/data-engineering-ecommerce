@@ -9,6 +9,7 @@ venv/
 
 # Data
 data/
+lake/
 
 # Logs
 *.log
@@ -19,13 +20,16 @@ data/
 # IDE
 .vscode/
 .idea/
-# Data lake
-lake/
 
 # dbt
 dbt/logs/
 dbt/target/
 dbt/.user.yml
+
+# dbt snowflake
+dbt_snowflake/logs/
+dbt_snowflake/target/
+dbt_snowflake/runtime/.user.yml
 
 # Airflow generated files
 airflow/logs/

@@ -183,3 +183,9 @@ SNOWFLAKE_DATASETS = {
         "temp_table": "TMP_RAW_USER_METRICS",
     },
 }
+
+# ============================================================
+# Snowflake dbt configuration
+# ============================================================
+
+SNOWFLAKE_DBT_PROJECT_DIR = "/usr/app/dbt_snowflake"

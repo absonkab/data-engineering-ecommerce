@@ -6,29 +6,6 @@ The platform combines real-time data processing, batch workflows, data quality v
 
 Built with Docker Compose, the project provides a reproducible local environment to demonstrate the design and implementation of an end-to-end data platform.
 
-## Table of Contents
-
-- Overview
-- Architecture
-- Technology Stack
-- Data Pipeline
-  - Event Ingestion
-  - Streaming Processing
-  - Gold Layer and PostgreSQL
-  - Snowflake Integration
-  - dbt Transformations
-  - Airflow Orchestration
-- Data Quality
-- dbt Documentation
-- Prerequisites
-- Getting Started
-- Running the Pipelines
-- Data Validation
-- Configuration and Data Persistence
-- Troubleshooting
-- Future Improvements
-- Author
-
 ## Overview
 
 This project implements an end-to-end e-commerce data platform, from event generation to analytics-ready datasets.

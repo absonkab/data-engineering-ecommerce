@@ -1,0 +1,287 @@
+## Architecture
+Ingestion > Kafka > Spark > Data Lake > dbt > BI
+
+<details>
+<summary>Click to see the full architecture</summary>
+
+```text
+                  +------------------+
+                  | Python Producer  |
+                  +------------------+
+                           |
+                           |
+                           │
+       ┌───────────────────┴───────────────────┐
+       │                                       │
+NORMAL EVENTS                                ANOMALY EVENTS
+       |                                       │
+       |      ┌────────────────┬───────────────┼───────────────┐
+       |      ▼                ▼               ▼               ▼
+       |      MISSING        INVALID         LATE          DUPLICATE
+       |      │                │               │               |
+       |      └────────────────┴───────┬───────┴───────────────┘
+       |                               │
+       |                               |
+       └────────────────────┬──────────┘
+                            |
+                     ┌──────────────┐
+                     │     Kafka    │
+                     └──────┬───────┘
+                            │
+                     ┌───────────────┐
+                     │Spark Streaming│
+                     └───────┬───────┘
+                             ▼
+                     ┌──────────────┐
+                     │    BRONZE    │
+                     │  Raw + Kafka │
+                     │   metadata   │
+                     └──────┬───────┘
+                            │
+                            ▼
+                       ┌───────────────┐
+                       │Spark Streaming│
+                       └───────┬───────┘
+                               │
+                     nettoyage / normalisation
+                               │
+                     ┌─────────┴─────────┐
+                     │                   │
+                     ▼                   ▼
+              VALID EVENTS        INVALID EVENTS
+                     │                   │
+              watermark 10 min           │
+                     │                   │
+              dedup event_id             │
+                     │                   │
+                     ▼                   ▼
+                  SILVER             QUARANTINE
+                     │
+         ┌───────────┼───────────┐
+         ▼           ▼           ▼
+       Hourly      Product       User
+        Gold         Gold         Gold
+         │           │           │
+         └───────────┼───────────┘
+                     │
+                     ▼
+                Spark Publisher
+                     │
+                     ▼
+                 PostgreSQL
+                     │
+          PostgreSQL / serving
+                     │
+                     ├── gold_hourly_metrics  ───┐
+                     ├── gold_product_metrics  ──┼──→ dbt sources
+                     └── gold_user_metrics  ─────┘
+                                                 │
+                                                 ▼
+                                            ┌─────────┐
+                                            │ Sources │
+                                            └────┬────┘
+                                                 │
+                                                 ▼
+                                            ┌─────────┐
+                                            │ Staging │
+                                            └────┬────┘
+                                                 │
+                                                 ├── stg_hourly_metrics     VIEW
+                                                 ├── stg_product_metrics    VIEW
+                                                 └── stg_user_metrics       VIEW
+                                                 |
+                                                 ▼
+                                          ┌──────────────┐
+                                          │ Intermediate │
+                                          └──────┬───────┘
+                                                 │
+                                                 ├── int_hourly_metrics     VIEW
+                                                 ├── int_product_metrics    VIEW
+                                                 └── int_user_metrics       VIEW
+                                                 │
+                                                 ▼
+                                             ┌───────┐
+                                             │ Marts │
+                                             └───────┘
+                                                 │
+                                                 ├── mart_hourly_metrics     TABLE
+                                                 ├── mart_product_metrics    TABLE
+                                                 └── mart_user_metrics       TABLE
+                                                 |
+                                                 ├── tests
+                                                 └── documentation
+                                                 │
+                                                 ▼
+                                          ┌──────────────┐
+                                          │   Dashboard  │
+                                          └──────────────┘
+                                                 ▲
+                                                 │
+                                          ┌──────┴───────┐
+                                          │   Airflow    │
+                                          │ Orchestration│
+                                          └──────────────┘
+                                                 │
+                                     ┌───────────┴───────────┐
+                               DockerOperator           PythonOperator
+                                     |                       |
+                                     ▼                       ▼
+                              dbt container             Spark container
+                                     │                       │
+                                     ▼                       ▼
+                             dbt run / dbt test      Gold serving scripts
+
+```
+</details>
+
+
+
+
+                  E-commerce Event Generator
+                             |
+                             v
+                         Apache Kafka
+                             |
+                             v
+                  Spark Structured Streaming
+                             |
+                             v
+                       Data Lake
+                             |
+                 Bronze → Silver → Gold
+                             |
+                 +-----------+-----------+
+                 |                       |
+                 v                       v
+             PostgreSQL              Parquet Export
+                 |                       |
+                 v                       v
+             dbt Models               Snowflake RAW
+                 |                       |
+                 v                       v
+          Analytical Models           dbt Models
+                 |                       |
+                 v                       v
+             BI / Analytics         Analytical Marts
+                                         |
+                                         v
+                                  dbt Documentation
+
+                  Apache Airflow
+                Orchestrates workflows
+
+
+## Project Structure
+
+The main project components are organized as follows:
+<details>
+<summary>Click to see</summary>
+
+```text
+data-engineering-ecommerce/
+|       
++---airflow
+|   |
+|   +---dags
+|   |           
+|   \---logs
+|       
++---config
+|       
++---dbt
+|   |   
+|   +---logs
+|   |       
+|   +---models
+|   |   |   
+|   |   +---intermediate
+|   |   |       
+|   |   +---marts
+|   |   |       
+|   |   \---staging
+|   |           
+|   +---target
+|   |                         
+|   \---tests
+|           
+│
+└── dbt_snowflake/
+|   ├── models/
+|   |   ├── sources.yml
+|   |   ├── schema.yml
+|   |   │
+│   |   ├── staging/
+│   │   |   ├── stg_hourly_metrics.sql
+│   │   |   ├── stg_product_metrics.sql
+│   │   |   └── stg_user_metrics.sql
+│   │   |
+│   |   ├── intermediate/
+│   |   │   ├── int_hourly_metrics.sql
+│   |   │   ├── int_product_metrics.sql
+│   |   │   └── int_user_metrics.sql
+│   |   │
+│   |   └── marts/
+│   |       ├── mart_hourly.sql
+│   |       ├── mart_product.sql
+│   |       └── mart_user.sql
+│   │
+│   ├── tests/
+|   |   ├── assert_unique_product_hour.sql
+|   |   ├── assert_unique_user_hour.sql
+|   |   ├── assert_non_negative_metrics.sql
+|   |   └── assert_event_counts_consistent.sql
+│   │
+│   ├── macros/
+│       ├── dbt_project.yml
+|       ├── dbt_projects_profiles.yml
+│       └── ...
++---ingestion
+|   |   
+|   +---producer
+|           
++---lake
+|   |
+|   +---bronze
+|   |
+|   +---checkpoints
+|   |                       
+|   +---gold
+|   |   +---hourly_metrics
+|   |   |           
+|   |   +---product_metrics
+|   |   |           
+|   |   \---user_metrics
+|   |               
+|   +---quarantine
+|   | 
+|   \---silver
+|  
++---spark
+|   |   
+|   +---jobs
+|   |   |   
+|   |   +---serving
+|   |   |   |   
+|   |   |   \---common
+|   |           
+|   +---schemas
+|   |       
+|   +---utils
+|           
++---sql
+|   \---serving
+|           
+\---tests
+|    +---integration
+|    |       
+|    \---unit
+|
+|.env
+|.env.example
+|.gitignore
+|docker-compose.yml
+|README.md
+```
+</details></br>
+
+The exact locations of the Spark jobs and dbt models depend on their implementation in the repository. The `lake/` directory is used for the Parquet data lake and is mounted into the relevant containers.

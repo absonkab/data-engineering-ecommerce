@@ -1,177 +1,97 @@
 # Real-Time E-commerce Data Platform
 
-An end-to-end Data Engineering project that simulates e-commerce events, processes streaming data with Apache Spark, stores analytical metrics in PostgreSQL, and builds tested data models with dbt.
+An end-to-end Data Engineering platform that simulates e-commerce events, processes streaming data with Apache Spark, builds analytical datasets, and orchestrates data transformations across PostgreSQL and Snowflake.
 
-The platform combines real-time processing with scheduled orchestration to demonstrate a reproducible data pipeline using Docker Compose.
+The platform combines real-time data processing, batch workflows, data quality validation, and analytical modeling using modern Data Engineering technologies.
+
+Built with Docker Compose, the project provides a reproducible local environment to demonstrate the design and implementation of an end-to-end data platform.
+
+## Table of Contents
+
+- Overview
+- Architecture
+- Technology Stack
+- Data Pipeline
+  - Event Ingestion
+  - Streaming Processing
+  - Gold Layer and PostgreSQL
+  - Snowflake Integration
+  - dbt Transformations
+  - Airflow Orchestration
+- Data Quality
+- dbt Documentation
+- Prerequisites
+- Getting Started
+- Running the Pipelines
+- Data Validation
+- Configuration and Data Persistence
+- Troubleshooting
+- Future Improvements
+- Author
 
 ## Overview
 
-This project implements a complete data pipeline, from event ingestion to analytics-ready data.
+This project implements an end-to-end e-commerce data platform, from event generation to analytics-ready datasets.
 
 The main objectives are to:
 
-* Ingest simulated e-commerce events using Python and Apache Kafka.
-* Process streaming data with Spark Structured Streaming.
-* Organize processed data into Bronze, Silver, and Gold layers.
-* Store Gold metrics in PostgreSQL for analytical use.
-* Build analytical models with dbt.
-* Validate data transformations with automated dbt tests.
-* Orchestrate the pipeline with Apache Airflow.
-* Run the orchestration DAG automatically every hour.
+- Generate and ingest simulated e-commerce events using Python and Apache Kafka.
+- Process streaming data using Spark Structured Streaming.
+- Organize processed data into Bronze, Silver, and Gold layers.
+- Store analytical metrics in PostgreSQL.
+- Export Gold datasets as Parquet files.
+- Load analytical datasets into Snowflake.
+- Build analytical models using dbt.
+- Validate transformations with automated data quality tests.
+- Orchestrate data workflows using Apache Airflow.
+- Generate dbt documentation automatically.
+
+The project demonstrates two complementary analytical pipelines:
+
+1. A PostgreSQL-based pipeline for serving analytical metrics.
+2. A Snowflake-based pipeline for cloud data warehousing and analytical modeling.
 
 The goal is to build a reproducible data platform using technologies commonly found in modern data engineering environments.
 
+## Architecture
+
+The platform follows a layered data architecture.
+
+<p align="center">
+  <img src="docs/images/00_architecture.png" width="80%">
+</p>
+
+<p align="center">
+  <em>High-level architecture</em>
+</p>
+
+
+### Data Lake Architecture
+
+The data lake is organized into three layers:
+
+| Layer | Responsibility |
+|---|---|
+| Bronze | Stores initially ingested streaming events. |
+| Silver | Contains cleaned and transformed records. |
+| Gold | Contains analytical datasets prepared for downstream consumption. |
 
 ## Technology Stack
 
-| Technology              | Purpose                                                    |
-| ----------------------- | -----------------------------------------------------------|
-| Python                  | Event generation, ingestion, pipeline and serving scripts  |
-| Apache Kafka            | Event streaming and message transport                      |
-| Apache Spark 3.5.1      | Distributed data processing and Structured Streaming       |
-| Data Lake               | Storage of Bronze, Silver, and Gold datasets               |
-| PostgreSQL 15           | Storage of serving-ready analytical metrics                |
-| dbt Core                | SQL transformations and data quality tests                 |
-| Apache Airflow 2.10.5   | Pipeline orchestration and scheduling                      |
-| Docker & Docker Compose | Containerization, local environment and service management |
-| pgAdmin                 | PostgreSQL database administration                         |
+| Technology              | Purpose                                                             |
+|-------------------------|---------------------------------------------------------------------|
+| Python                  | Event generation, ingestion, data processing and automation scripts |
+| Apache Kafka            | Event streaming and message transport                               |
+| Apache Spark 3.5.1      | Distributed processing and Structured Streaming                     |
+| Data Lake               | Storage of Bronze, Silver and Gold datasets                         |
+| PostgreSQL 15           | Storage of serving-ready analytical metrics                         |
+| Snowflake               | Cloud data warehouse and analytical storage                         |
+| dbt Core                | SQL transformations, data modeling and quality tests                |
+| Apache Airflow 2.10.5   | Workflow orchestration                                              |
+| Docker & Docker Compose | Containerization and local infrastructure                           |
+| pgAdmin                 | PostgreSQL database administration                                  |
+| Git                     | Version control                                                     |
 
-
-## Architecture
-Ingestion > Kafka > Spark > Data Lake > dbt > BI
-
-<details>
-<summary>Click to see the full architecture</summary>
-
-```text
-                  +------------------+
-                  | Python Producer  |
-                  +------------------+
-                           |
-                           |
-                           │
-       ┌───────────────────┴───────────────────┐
-       │                                       │
-NORMAL EVENTS                                ANOMALY EVENTS
-       |                                       │
-       |      ┌────────────────┬───────────────┼───────────────┐
-       |      ▼                ▼               ▼               ▼
-       |      MISSING        INVALID         LATE          DUPLICATE
-       |      │                │               │               |
-       |      └────────────────┴───────┬───────┴───────────────┘
-       |                               │
-       |                               |
-       └────────────────────┬──────────┘
-                            |
-                     ┌──────────────┐
-                     │     Kafka    │
-                     └──────┬───────┘
-                            │
-                     ┌───────────────┐
-                     │Spark Streaming│
-                     └───────┬───────┘
-                             ▼
-                     ┌──────────────┐
-                     │    BRONZE    │
-                     │  Raw + Kafka │
-                     │   metadata   │
-                     └──────┬───────┘
-                            │
-                            ▼
-                       ┌───────────────┐
-                       │Spark Streaming│
-                       └───────┬───────┘
-                               │
-                     nettoyage / normalisation
-                               │
-                     ┌─────────┴─────────┐
-                     │                   │
-                     ▼                   ▼
-              VALID EVENTS        INVALID EVENTS
-                     │                   │
-              watermark 10 min           │
-                     │                   │
-              dedup event_id             │
-                     │                   │
-                     ▼                   ▼
-                  SILVER             QUARANTINE
-                     │
-         ┌───────────┼───────────┐
-         ▼           ▼           ▼
-       Hourly      Product       User
-        Gold         Gold         Gold
-         │           │           │
-         └───────────┼───────────┘
-                     │
-                     ▼
-                Spark Publisher
-                     │
-                     ▼
-                 PostgreSQL
-                     │
-          PostgreSQL / serving
-                     │
-                     ├── gold_hourly_metrics  ───┐
-                     ├── gold_product_metrics  ──┼──→ dbt sources
-                     └── gold_user_metrics  ─────┘
-                                                 │
-                                                 ▼
-                                            ┌─────────┐
-                                            │ Sources │
-                                            └────┬────┘
-                                                 │
-                                                 ▼
-                                            ┌─────────┐
-                                            │ Staging │
-                                            └────┬────┘
-                                                 │
-                                                 ├── stg_hourly_metrics     VIEW
-                                                 ├── stg_product_metrics    VIEW
-                                                 └── stg_user_metrics       VIEW
-                                                 |
-                                                 ▼
-                                          ┌──────────────┐
-                                          │ Intermediate │
-                                          └──────┬───────┘
-                                                 │
-                                                 ├── int_hourly_metrics     VIEW
-                                                 ├── int_product_metrics    VIEW
-                                                 └── int_user_metrics       VIEW
-                                                 │
-                                                 ▼
-                                             ┌───────┐
-                                             │ Marts │
-                                             └───────┘
-                                                 │
-                                                 ├── mart_hourly_metrics     TABLE
-                                                 ├── mart_product_metrics    TABLE
-                                                 └── mart_user_metrics       TABLE
-                                                 |
-                                                 ├── tests
-                                                 └── documentation
-                                                 │
-                                                 ▼
-                                          ┌──────────────┐
-                                          │   Dashboard  │
-                                          └──────────────┘
-                                                 ▲
-                                                 │
-                                          ┌──────┴───────┐
-                                          │   Airflow    │
-                                          │ Orchestration│
-                                          └──────────────┘
-                                                 │
-                                     ┌───────────┴───────────┐
-                               DockerOperator           PythonOperator
-                                     |                       |
-                                     ▼                       ▼
-                              dbt container             Spark container
-                                     │                       │
-                                     ▼                       ▼
-                             dbt run / dbt test      Gold serving scripts
-
-```
-</details>
 
 
 ## Data Pipeline
@@ -180,168 +100,265 @@ NORMAL EVENTS                                ANOMALY EVENTS
 
 A Python producer generates simulated e-commerce events and publishes them to the Kafka topic `ecommerce_events`.
 
-Kafka decouples event generation from downstream processing.
+Kafka decouples event generation from downstream processing and provides the streaming infrastructure used by Spark.
 
 ### 2. Streaming Processing
 
 Spark Structured Streaming consumes events from Kafka and processes them through three data layers.
 
-* **Bronze:** initial ingestion of streaming events.
-* **Silver:** data cleaning and transformation.
-* **Gold:** analytical metrics prepared for downstream consumption.
+**Bronze**
 
-The Gold datasets are stored as Parquet files in the local data lake.
+- Receives the initial streaming events.
+- Preserves the ingested data for downstream processing.
 
-### 3. Gold Metrics
+**Silver**
 
-The Gold layer contains three analytical datasets:
+- Cleans and transforms incoming records.
+- Prepares structured data for analytical processing.
 
-* `hourly_metrics`
-* `product_metrics`
-* `user_metrics`
+**Gold**
 
-These datasets are published to three PostgreSQL serving tables:
+- Computes analytical metrics.
+- Produces datasets for downstream consumption.
 
-* `gold_hourly_metrics`
-* `gold_product_metrics`
-* `gold_user_metrics`
+The Gold layer contains three main datasets:
+
+```text
+lake/gold/
+├── hourly_metrics/
+├── product_metrics/
+└── user_metrics/
+```
+
+The datasets are stored in Parquet format.
+
+### 3. Gold Metrics and PostgreSQL
+
+The Gold datasets are published to three PostgreSQL serving tables:
+
+- `gold_hourly_metrics`
+- `gold_product_metrics`
+- `gold_user_metrics`
 
 The serving scripts use PostgreSQL upserts to insert new metrics and update existing records when their keys match.
 
-### 4. Analytics with dbt
+This provides a relational serving layer for analytical queries and downstream dbt transformations.
 
-dbt builds analytical models from the serving data in PostgreSQL.
+### 4. Snowflake Integration
 
-The project includes automated dbt tests to validate the resulting models.
+The project also includes a separate pipeline that exports Gold datasets to Snowflake.
 
-The current project validation completed successfully with **54 dbt tests passing**.
+The integration follows these steps:
 
-### 5. Orchestration with Airflow
+1. Validate the availability of the Gold datasets.
+2. Check Spark Worker availability before starting the export.
+3. Export the three Gold datasets as Parquet files.
+4. Validate the generated export files.
+5. Upload the files to a Snowflake internal stage.
+6. Load the datasets into temporary Snowflake tables.
+7. Validate the loaded records.
+8. Refresh the permanent RAW tables transactionally.
 
-The Airflow DAG is named `ecommerce_pipeline`.
+The Snowflake RAW layer contains:
 
-It runs automatically at the beginning of every hour and can also be triggered manually.
+```text
+ECOMMERCE_DB
+└── RAW
+    ├── RAW_HOURLY_METRICS
+    ├── RAW_PRODUCT_METRICS
+    └── RAW_USER_METRICS
+```
 
-The DAG executes five tasks in sequence:
+The loading process uses temporary tables before refreshing the permanent RAW tables.
 
-| Order | Task                     | Responsibility                                                                           |
-| ----- | ------------------------ | ---------------------------------------------------------------------------------------- |
-| 1     | `run_gold`               | Checks that the three Gold datasets contain Parquet files.                               |
-| 2     | `check_or_create_tables` | Executes the SQL script that creates the PostgreSQL serving tables if they do not exist. |
-| 3     | `run_serving`            | Publishes Gold metrics to PostgreSQL.                                                    |
-| 4     | `run_dbt`                | Builds the analytical models.                                                            |
-| 5     | `test_dbt`               | Runs the dbt tests.                                                                      |
+This approach allows the pipeline to validate incoming data before replacing the existing RAW contents.
 
-The DAG uses `catchup=False` to avoid creating historical runs and `max_active_runs=1` to prevent overlapping active runs.
+The refresh operation uses a transaction so that the three datasets are updated together.
 
-**Important:** Airflow orchestrates the batch and analytics steps. The Kafka ingestion and Spark streaming applications operate independently.
+### 5. Analytics with dbt
 
+The project contains two separate dbt projects.
+
+**PostgreSQL dbt project**
+
+The first dbt project builds analytical models from PostgreSQL serving tables.
+
+It includes staging, intermediate and mart transformations, together with automated data quality tests.
+
+The latest recorded successful validation completed with **54 dbt tests passing**. 
+
+**Snowflake dbt project**
+
+The second dbt project builds analytical models from the Snowflake RAW layer.
+
+It follows a layered modeling approach:
+
+```text
+Snowflake RAW -> Staging -> Intermediate -> Marts
+```
+
+The project contains 9 dbt models.
+
+The latest successful validation completed with 131 passing tests.
+
+`The two dbt projects are independent and use separate configurations and database connections.`
+
+### 6. Airflow Orchestration
+
+Apache Airflow orchestrates the batch and analytical workflows.
+
+The project contains two main DAGs.
+
+![Airflow PostgreSQL DAG](docs/images/09_airflow_dags.png)
+
+#### PostgreSQL Pipeline
+
+DAG:
+
+`ecommerce_pipeline`
+
+This DAG orchestrates the publication of Gold metrics to PostgreSQL and their analytical transformations.
+
+It contains five sequential tasks:
+
+| Order | Task                     | Responsibility                                      |
+|-------|--------------------------|-----------------------------------------------------|
+| 1     | `run_gold`               | Checks the availability of the three Gold datasets. |
+| 2     | `check_or_create_tables` | Creates the PostgreSQL serving tables if necessary. |
+| 3     | `run_serving`            | Publishes Gold metrics to PostgreSQL.               |
+| 4     | `run_dbt`                | Builds the PostgreSQL dbt models.                   |
+| 5     | `test_dbt`               | Executes the PostgreSQL dbt tests.                  |
+
+The DAG is configured to run hourly:
+
+```python
+schedule="0 * * * *"
+```
+
+It also uses:
+
+```python
+catchup=False
+max_active_runs=1
+```
+
+These settings prevent the creation of historical scheduled runs and avoid overlapping active DAG runs.
+
+![Airflow PostgreSQL DAG](docs/images/10_airflow_postgres_dag.png)
+
+#### Snowflake Pipeline
+
+DAG:
+
+`snowflake_export_pipeline`
+
+This DAG orchestrates the export of Gold datasets, their loading into Snowflake, and the dbt transformations.
+
+It contains eight sequential tasks:
+
+| Order | Task | Responsibility |
+|---|---|---|
+| 1 | `check_gold_datasets` | Validates the availability of the Gold datasets. |
+| 2 | `check_spark_worker` | Checks Spark Worker availability and minimum resource requirements. |
+| 3 | `run_spark_export` | Exports Gold datasets as Parquet files. |
+| 4 | `validate_snowflake_exports` | Validates the generated Parquet files. |
+| 5 | `load_data_into_snowflake` | Loads the datasets into Snowflake RAW tables. |
+| 6 | `run_dbt_models` | Builds the Snowflake dbt models. |
+| 7 | `test_dbt_models` | Executes Snowflake dbt data quality tests. |
+| 8 | `generate_dbt_docs` | Generates the dbt documentation artifacts. |
+
+The Snowflake DAG currently uses manual triggering during development:
+
+```python
+schedule=None
+```
+
+![Airflow Snowflake DAG](docs/images/11_airflow_snowflake_dag.png)
+
+**Important:** Both DAGs use Airflow to coordinate batch and analytical operations, while Kafka ingestion and Spark streaming applications operate independently.
 
 ## Data Quality
 
-The dbt test suite contains 54 data quality tests.
+Data quality is validated at multiple stages of the platform.
 
-Latest successful execution:
+**Pipeline-level validation**
+
+- Checks that Gold datasets exist.
+- Checks that Spark Worker resources meet minimum requirements.
+- Validates the generated Parquet files.
+- Checks that exported files are non-empty.
+- Validates the number of records loaded into temporary Snowflake tables.
+- Verifies the permanent RAW table record counts before committing the refresh transaction.
+
+**dbt validation**
+
+The project currently has two separate dbt test suites.
+
+| dbt Project | Database | Passing Tests |
+|---|---|---:|
+| PostgreSQL | PostgreSQL | 54 |
+| Snowflake | Snowflake | 131 |
+| **Total** | | **185** |
+
+Latest recorded successful Snowflake dbt execution:
+
 ```text
-PASS=54 WARN=0 ERROR=0 SKIP=0 TOTAL=54
+PASS=131 WARN=0 ERROR=0 SKIP=0 TOTAL=131
 ```
-These results demonstrate that all 54 tests passed during the recorded execution. They do not guarantee that every future dataset will pass the same tests.
 
+These results represent successful executions during project validation. They do not guarantee that future datasets will always pass the same tests.
 
-## Project Structure
+## dbt Documentation
 
-The main project components are organized as follows:
-<details>
-<summary>Click to see</summary>
+The Snowflake dbt project generates documentation automatically as the final task of its Airflow DAG.
+
+The command executed is:
+
+```bash
+dbt docs generate --target dev
+```
+
+The generated documentation includes:
+
+| File | Purpose |
+|---|---|
+| `index.html` | Interactive dbt documentation interface |
+| `manifest.json` | Project metadata, models and dependencies |
+| `catalog.json` | Database metadata and column information |
+| `run_results.json` | Results of the latest dbt execution |
+
+The generated files are stored in:
 
 ```text
-data-engineering-ecommerce/
-|       
-+---airflow
-|   |
-|   +---dags
-|   |           
-|   \---logs
-|       
-+---config
-|       
-+---dbt
-|   |   
-|   +---logs
-|   |       
-|   +---models
-|   |   |   
-|   |   +---intermediate
-|   |   |       
-|   |   +---marts
-|   |   |       
-|   |   \---staging
-|   |           
-|   +---target
-|   |                         
-|   \---tests
-|           
-+---ingestion
-|   |   
-|   +---producer
-|           
-+---lake
-|   |
-|   +---bronze
-|   |
-|   +---checkpoints
-|   |                       
-|   +---gold
-|   |   +---hourly_metrics
-|   |   |           
-|   |   +---product_metrics
-|   |   |           
-|   |   \---user_metrics
-|   |               
-|   +---quarantine
-|   | 
-|   \---silver
-|  
-+---spark
-|   |   
-|   +---jobs
-|   |   |   
-|   |   +---serving
-|   |   |   |   
-|   |   |   \---common
-|   |           
-|   +---schemas
-|   |       
-|   +---utils
-|           
-+---sql
-|   \---serving
-|           
-\---tests
-|    +---integration
-|    |       
-|    \---unit
-|
-|.env
-|.env.example
-|.gitignore
-|docker-compose.yml
-|README.md
+dbt_snowflake/target/
 ```
-</details></br>
 
-The exact locations of the Spark jobs and dbt models depend on their implementation in the repository. The `lake/` directory is used for the Parquet data lake and is mounted into the relevant containers.
+The documentation can be served using:
+
+```bash
+docker compose exec dbt-snowflake dbt docs serve --host 0.0.0.0
+```
+
+For browser access from the host machine, the container service must also expose and map the documentation server port.
 
 ## Prerequisites
 
 Before starting, install:
 
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-* Docker Compose, included with current Docker Desktop installations.
-* Git, if you want to clone the repository.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Docker Compose, included with current Docker Desktop installations.
+- Git, if you want to clone the repository.
 
-The project is designed to run locally with Docker Compose.
-Make sure Docker has enough CPU and memory resources to run the services concurrently.
+For the complete Snowflake pipeline, you also need:
+
+- A Snowflake account.
+- A configured Snowflake warehouse, database, schemas and role.
+- A Snowflake service user.
+- RSA key-pair authentication for the service user.
+
+The project is designed to run locally using Docker Compose.
+
+Make sure Docker has sufficient CPU and memory resources to run the services you intend to start.
 
 ## Getting Started
 The project uses Docker Compose to manage its services.
@@ -372,12 +389,13 @@ cp .env.example .env
 
 Review `.env` and configure the required values, including:
 
-* PostgreSQL credentials and database name.
-* Airflow credentials.
-* Service ports.
-* Spark resource settings, if applicable.
+- PostgreSQL credentials and database name.
+- Airflow credentials.
+- Service ports.
+- Spark resource settings.
+- Snowflake account and service-user configuration.
 
-Keep `.env` local. Do not commit passwords or other secrets to GitHub.
+Keep `.env` local. Never commit passwords, private keys or other sensitive credentials to Git.
 
 #### Spark Resource Allocation
 
@@ -399,7 +417,28 @@ These settings help distribute resources across the streaming applications in a 
 
 Adjust the values in `.env` if your machine has different resource limits.
 
-### 3. Validate the Docker Compose configuration
+### 3. Configure Snowflake authentication
+
+The Snowflake pipeline uses RSA key-pair authentication.
+
+The private key must be stored locally in the project's secrets directory and mounted read-only into the relevant container.
+
+Example directory:
+
+```text
+secrets/
+└── snowflake/
+    ├── rsa_key.p8
+    └── rsa_key.pub
+```
+
+Configure the public key on the Snowflake service user.
+
+The private key must never be committed to GitHub or shared publicly.
+
+Configure the Snowflake connection variables in `.env` according to the project's environment configuration.
+
+### 4. Validate the Docker Compose configuration
 
 ```bash
 docker compose config --quiet
@@ -407,60 +446,106 @@ docker compose config --quiet
 
 If the command completes without an error, the Compose configuration is valid.
 
-### 4. Build and start the services
+### 5. Build and start the services
+
+Build and start the infrastructure:
 
 ```bash
 docker compose up -d --build
 ```
 
-Docker Compose starts the services and their configured dependencies.
+For local development, you can also start individual services when needed:
+
+```bash
+docker compose up -d service_name
+```
+
+Refer to the Docker Compose configuration for the exact service names and dependencies.
 
 The `kafka-init` service waits for Kafka to become available and creates the `ecommerce_events` topic if it does not already exist.
 
-The PostgreSQL service mounts `sql/serving` into `/docker-entrypoint-initdb.d`. PostgreSQL executes initialization scripts from this directory when initializing a new, empty data directory.
+The folder `sql/serving` and PostgreSQL initialization scripts are mounted into:
 
-For an existing database, the Airflow `create_gold_tables` task executes `create_gold_tables.sql` before publishing the metrics.
-
-You can also start the services one by one:
-
-```bash
-docker compose up -d --build service_name
+```text
+/docker-entrypoint-initdb.d/
 ```
-Refer to the Docker Compose configuration for the exact service names and startup commands.
+
+These scripts are executed automatically when PostgreSQL initializes a new, empty data directory.
+
+For an existing database, the Airflow PostgreSQL DAG also includes a task `create_gold_tables` to create the serving tables (from `create_gold_tables.sql`) if necessary.
 
 
-### 5. Check the running containers
-Verify that Kafka, PostgreSQL, Spark, and Airflow are running and healthy where healthchecks are configured.
+### 6. Check the running containers
+
+Verify the status of the services:
 
 ```bash
 docker compose ps
 ```
 
-To inspect logs:
+Inspect container logs:
 
 ```bash
 docker compose logs --tail=100
 ```
 
-To inspect the Kafka initialization and event ingestion:
+Inspect Kafka initialization and ingestion:
 
 ```bash
 docker compose logs --tail=50 kafka-init ingestion
 ```
 
-To list Kafka topics:
+List Kafka topics:
 
 ```bash
 docker exec kafka kafka-topics --bootstrap-server kafka:9092 --list
 ```
 
-The topic `ecommerce_events` should be present.
+The `ecommerce_events` topic should be present.
 
 Confirm that the ingestion service produces events and that the Spark Structured Streaming applications process them.
 
-Check that the Bronze, Silver, and Gold datasets are being generated.
+Check that the Bronze, Silver and Gold datasets are being generated.
 
-### 6. Access the interfaces
+## Running the Pipelines
+
+### PostgreSQL Pipeline
+
+Once the required services are running and the `ecommerce_pipeline` DAG is enabled, Airflow schedules it hourly.
+
+To trigger it manually:
+
+1. Open the Airflow interface.
+2. Navigate to `ecommerce_pipeline`.
+3. Ensure the DAG is not paused.
+4. Trigger a new DAG run.
+5. Open the Graph view.
+6. Verify that all five tasks complete successfully.
+
+### Snowflake Pipeline
+
+The Snowflake pipeline is currently triggered manually.
+
+Before triggering it, make sure the following services are available:
+
+- Airflow Scheduler.
+- Spark Master.
+- Spark Worker.
+- Spark Job container.
+- dbt-Snowflake container.
+
+Then:
+
+1. Open the Airflow interface.
+2. Navigate to `snowflake_export_pipeline`.
+3. Trigger a new DAG run.
+4. Open the Graph view.
+5. Follow the eight tasks.
+6. Verify that all tasks complete successfully.
+
+The pipeline will export the Gold datasets, load them into Snowflake, execute dbt transformations and tests, and generate the documentation.
+
+## Accessing the Interfaces
 
 When the corresponding services are running, access the interfaces using the configured local ports.
 
@@ -468,43 +553,21 @@ When the corresponding services are running, access the interfaces using the con
 | ----------------- | --------------------- |
 | Spark Master UI   | http://localhost:8080 |
 | pgAdmin           | http://localhost:5050 |
-| dbt documentation | http://localhost:8081 |
+| Postgres dbt doc  | http://localhost:8081 |
 | Airflow           | http://localhost:8082 |
 
-The available interfaces and ports depend on the Docker Compose configuration.
+
+Snowflake is accessed through its web interface.
+
+The Snowflake dbt documentation is generated locally in `dbt_snowflake/target/`. To access it through a browser, start the dbt documentation server and configure the corresponding Docker port mapping.
 
 Use the credentials configured in `.env` where authentication is required.
 
-
-## Running the Pipeline
-
-### Automatic execution
-
-Once Airflow is running and the `ecommerce_pipeline` DAG is enabled, Airflow schedules the DAG hourly.
-
-The schedule is configured as:
-
-```python
-schedule="0 * * * *"
-```
-
-This means the DAG is scheduled at minute zero of every hour, according to Airflow's configured timezone.
-
-### Manual execution
-
-To test the pipeline, open the Airflow interface:
-
-1. Navigate to `ecommerce_pipeline`.
-2. Ensure the DAG is not paused.
-3. Trigger a new DAG run.
-4. Open the task graph.
-5. Verify that all five tasks complete successfully.
-
-Manual triggering remains useful for development and troubleshooting.
+## Data Validation
 
 ### Verify PostgreSQL serving tables
 
-The following command lists the three Gold serving tables:
+List the three Gold serving tables:
 
 ```bash
 docker exec postgres psql -U data_user -d ecommerce -c "\dt gold_*"
@@ -520,7 +583,7 @@ gold_product_metrics
 gold_user_metrics
 ```
 
-### Verify the Gold data lake
+### Verify Gold datasets
 
 The Gold datasets should contain Parquet files under:
 
@@ -530,25 +593,81 @@ lake/gold/product_metrics/
 lake/gold/user_metrics/
 ```
 
-The Airflow `run_gold` task checks that each directory exists and contains at least one Parquet file before continuing.
+### Verify Snowflake RAW tables
+
+Connect to Snowflake and execute:
+
+```sql
+SELECT COUNT(*) FROM ECOMMERCE_DB.RAW.RAW_HOURLY_METRICS;
+
+SELECT COUNT(*) FROM ECOMMERCE_DB.RAW.RAW_PRODUCT_METRICS;
+
+SELECT COUNT(*) FROM ECOMMERCE_DB.RAW.RAW_USER_METRICS;
+```
+
+![Snowflake RAW tables](docs/images/02_snowflake_raw_counts.png)
+
+### Verify dbt models
+
+For the Snowflake dbt project:
+
+```bash
+docker compose exec dbt-snowflake dbt ls --resource-type model
+```
+
+Run the models manually if needed:
+
+```bash
+docker compose exec dbt-snowflake dbt run --target dev
+```
+
+Execute the tests:
+
+```bash
+docker compose exec dbt-snowflake dbt test --target dev
+```
+
+Generate documentation:
+
+```bash
+docker compose exec dbt-snowflake dbt docs generate --target dev
+```
+<p align="center">
+  <img src="docs/images/04_snowflake_marts.png" width="49%">
+  <img src="docs/images/08_dbt_tests_summary.png" width="49%">
+</p>
+
+| Mart hourly | Mart Product | Mart User |
+|----------|----------|----------|
+| ![fdff](docs/images/05_mart_hourly_data.png) | ![](docs/images/06_mart_product_data.png) | ![](docs/images/07_mart_user_data.png) |
 
 ## Configuration and Data Persistence
 
 The project uses Docker Compose volumes to share data and configuration between services.
 
-The Gold data lake is mounted into the relevant containers at `/lake`. Airflow uses the same mount to check the Gold datasets.
+The Gold data lake is mounted into the relevant containers at:
 
-The PostgreSQL data directory is persisted in a Docker volume.
+```text
+/lake
+```
 
-**Do not use `docker compose down -v` unless you intentionally want to remove the Compose-managed volumes.** Removing database volumes can delete persisted data.
+Airflow uses the same mount to validate the Gold datasets and orchestrate downstream operations.
 
-For a normal shutdown, use:
+PostgreSQL data is persisted in a Docker volume.
+
+Snowflake credentials are mounted read-only into the relevant containers.
+
+**Do not use `docker compose down -v` unless you intentionally want to remove the Compose-managed volumes.**
+
+Removing database volumes can delete persisted data.
+
+For a normal shutdown:
 
 ```bash
 docker compose down
 ```
 
-To restart the services:
+To restart services:
 
 ```bash
 docker compose up -d
@@ -564,13 +683,13 @@ Check that Kafka is running:
 docker compose ps kafka
 ```
 
-Inspect the initialization logs:
+Inspect initialization logs:
 
 ```bash
 docker compose logs kafka-init
 ```
 
-Then list the topics:
+List the topics:
 
 ```bash
 docker exec kafka kafka-topics --bootstrap-server kafka:9092 --list
@@ -584,7 +703,7 @@ Check the Spark streaming services:
 docker compose ps
 ```
 
-Inspect the logs of the relevant streaming applications:
+Inspect the logs:
 
 ```bash
 docker compose logs --tail=100 bronze-stream silver-stream gold-hourly gold-product gold-user
@@ -592,7 +711,7 @@ docker compose logs --tail=100 bronze-stream silver-stream gold-hourly gold-prod
 
 ### PostgreSQL serving tables are missing
 
-Check that PostgreSQL is healthy:
+Check PostgreSQL:
 
 ```bash
 docker compose ps postgres
@@ -604,31 +723,63 @@ Inspect its logs:
 docker compose logs --tail=100 postgres
 ```
 
-Verify the SQL initialization file is mounted:
+Verify the SQL initialization files:
 
 ```bash
 docker exec postgres ls -l /docker-entrypoint-initdb.d/
 ```
 
-You can also trigger the Airflow DAG to execute `create_gold_tables` before publishing the metrics.
+You can also trigger the PostgreSQL Airflow DAG to execute the table creation task.
 
 ### Airflow tasks fail
 
-Inspect the Airflow scheduler logs:
+Inspect the scheduler logs:
 
 ```bash
 docker compose logs --tail=100 airflow-scheduler
 ```
 
-Open the failed task in the Airflow interface and review its logs for the underlying error.
+Open the failed task in the Airflow interface and review its logs to identify the underlying error.
+
+### Spark Worker is unavailable
+
+Check the Spark Worker:
+
+```bash
+docker compose ps spark-worker
+```
+
+Start it if necessary:
+
+```bash
+docker compose start spark-worker
+```
+
+The Snowflake DAG checks Worker availability and minimum free resources before executing the Spark export.
+
+### Snowflake loading fails
+
+Check that the Snowflake container is running:
+
+```bash
+docker compose ps dbt-snowflake
+```
+
+Inspect its logs:
+
+```bash
+docker compose logs --tail=100 dbt-snowflake
+```
+
+Verify the Snowflake connection configuration, RSA key permissions and role privileges.
 
 ### dbt tests fail
 
-Inspect the logs of the `run_dbt` and `test_dbt` tasks in Airflow.
+Inspect the `run_dbt_models` and `test_dbt_models` task logs in Airflow.
 
-Verify that the PostgreSQL connection settings in `.env` match those used by the dbt project.
+Verify the relevant dbt profile, database connection and source tables.
 
-
+For Snowflake, check that the RAW tables contain the expected records.
 
 ## Project progress
 
@@ -764,31 +915,40 @@ Verify that the PostgreSQL connection settings in `.env` match those used by the
         - [x] Gold files check task
         - [x] Postgres serving task : publish data into PostgreSQL
         - [x] dbt task (Run dbt transformations)
+    - [x] DAG 2 : Snowflake ecommerce pipeline (Gold metrics -> Consolidate Parquets files -> export & load into snowflake -> dbt transformations & docs)
+        <details>
+        <summary>Click to see details</summary>
+
+        - [x] Consolidated Gold files check task
+        - [x] Snowflake export task : Load gold data into snowflake RAW stage
+        - [x] dbt task (Run dbt transformations)
 - [ ] BI dashboard
 - [ ] Final documentation and repository cleanup
 
-
 ## Future Improvements
 
-Potential extensions to the project include:
+Potential extensions include:
 
-* Improve documentation with architecture diagrams and execution screenshots.
-* Stronger data freshness checks for Gold datasets.
-* Improved handling of late-arriving events.
-* More comprehensive data quality checks.
-* Monitoring and alerting for streaming applications.
-* Add monitoring and alerting for pipeline failures.
-* CI/CD automation for code quality and pipeline validation.
-* Cloud deployment and integration with a cloud data warehouse.
+- Improve Spark resource allocation and capacity management.
+- Implement stronger data freshness checks.
+- Improve handling of late-arriving events.
+- Extend data quality validation.
+- Add monitoring and alerting for streaming applications.
+- Improve pipeline observability and failure notifications.
+- Implement CI/CD automation for code quality and pipeline validation.
+- Add BI dashboards on top of analytical marts.
+- Explore cloud deployment and additional data warehouse integrations.
 
 ## Author
 
 **Yacouba Abass KABORE**
 
-Data Engineer focused on data pipelines, streaming architectures, and observability.
+Data Engineer focused on data pipelines, streaming architectures, analytics and observability.
 
-* GitHub: [@absonkab](https://github.com/absonkab)
+GitHub: 
+* [@absonkab](https://github.com/absonkab) `https://github.com/absonkab`
 
 ---
 
-This project is built for learning and portfolio purposes. It demonstrates the integration of streaming ingestion, distributed processing, analytical data modeling, orchestration, and automated data quality validation.
+This project is built for learning and portfolio purposes. 
+It demonstrates the integration of streaming ingestion, distributed processing, data lake architecture, analytical modeling, cloud data warehousing, workflow orchestration and automated data quality validation.

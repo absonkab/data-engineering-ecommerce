@@ -78,8 +78,35 @@ QUARANTINE_CHECKPOINT_PATH = "/lake/checkpoints/quarantine"
 GOLD_PATH = "/lake/gold"
 GOLD_CHECKPOINT_PATH = "/lake/checkpoints/gold"
 
+# Gold datasets produced by the existing pipeline
+GOLD_DATASETS = [
+    "hourly_metrics",
+    "product_metrics",
+    "user_metrics",
+]
+
 # Gold Paths for Snowflake export
 SNOWFLAKE_EXPORT_PATH = "/lake/snowflake_export"
+
+# Dataset configuration for Snowflake export
+
+# Centralizes the source and destination paths of each dataset
+# This avoids duplicating path definitions throughout the spark job
+
+EXPORT_DATASETS = {
+    "hourly_metrics": {
+        "source": os.path.join(GOLD_PATH, "hourly_metrics"),
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "hourly_metrics")
+    },
+    "product_metrics": {
+        "source": os.path.join(GOLD_PATH, "product_metrics"),
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "product_metrics"),
+    },
+    "user_metrics": {
+        "source": os.path.join(GOLD_PATH, "user_metrics"),
+        "destination": os.path.join(SNOWFLAKE_EXPORT_PATH, "user_metrics"),
+    },
+}
 
 # ============================================================
 # Configuration PostgreSQL
@@ -98,9 +125,61 @@ POSTGRES_PROPERTIES = {
 }
 
 # ============================================================
-# Configuration Gold / Serving
+# Configuration Spark & Gold / Serving
 # ============================================================
 
 GOLD_HOURLY_METRICS_TABLE = "gold_hourly_metrics"
 GOLD_PRODUCT_METRICS_TABLE = "gold_product_metrics"
 GOLD_USER_METRICS_TABLE = "gold_user_metrics"
+
+# Existing Spark job container
+SPARK_CONTAINER = "spark-job"
+
+# Spark Master REST API
+SPARK_MASTER_URL = "http://spark:8080/json/"
+
+# Maximum time to wait for an available Spark Worker
+SPARK_WORKER_CHECK_TIMEOUT = 60
+
+# Delay between two availability checks
+SPARK_WORKER_CHECK_INTERVAL = 5
+
+# Minimum resources required on an available Worker
+MIN_FREE_CORES = 1
+MIN_FREE_MEMORY_MB = 1024
+
+# ============================================================
+# Snowflake configuration
+# ============================================================
+
+# Existing Snowflake loader container
+SNOWFLAKE_CONTAINER = "dbt-snowflake"
+
+SNOWFLAKE_CONFIG = {
+    "account": os.environ["SNOWFLAKE_ACCOUNT"],
+    "user": os.environ["SNOWFLAKE_USER"],
+    "private_key_file": os.environ["SNOWFLAKE_PRIVATE_KEY_PATH"],
+    "role": os.environ["SNOWFLAKE_ROLE"],
+    "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+    "database": "ECOMMERCE_DB",
+    "schema": "RAW",
+}
+
+STAGE_NAME = "ECOMMERCE_RAW_STAGE"
+FILE_FORMAT_NAME = "ECOMMERCE_PARQUET_FORMAT"
+
+# Dataset configuration
+SNOWFLAKE_DATASETS = {
+    "hourly_metrics": {
+        "raw_table": "RAW_HOURLY_METRICS",
+        "temp_table": "TMP_RAW_HOURLY_METRICS",
+    },
+    "product_metrics": {
+        "raw_table": "RAW_PRODUCT_METRICS",
+        "temp_table": "TMP_RAW_PRODUCT_METRICS",
+    },
+    "user_metrics": {
+        "raw_table": "RAW_USER_METRICS",
+        "temp_table": "TMP_RAW_USER_METRICS",
+    },
+}

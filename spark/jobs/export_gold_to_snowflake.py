@@ -24,9 +24,11 @@ from pyspark.sql import SparkSession
 from utils.spark_session import create_spark_session
 
 from config.config import (
-    GOLD_PATH,
-    SNOWFLAKE_EXPORT_PATH,
-    EXPORT_DATASETS
+    EXPORT_DATASETS,
+    SNOWFLAKE_EXPORT_APP_NAME,
+    SNOWFLAKE_EXPORT_MAX_CORES,
+    SNOWFLAKE_EXPORT_EXECUTOR_CORES,
+    SNOWFLAKE_EXPORT_EXECUTOR_MEMORY
 )
 
 # Logging configuration
@@ -175,7 +177,10 @@ def main():
     logger.info("Starting Gold to Snowflake export pipeline")
 
     spark = create_spark_session(
-        "ecommerce-gold-to-snowflake-export"
+        app_name=SNOWFLAKE_EXPORT_APP_NAME,
+        max_cores=SNOWFLAKE_EXPORT_MAX_CORES,
+        executor_cores=SNOWFLAKE_EXPORT_EXECUTOR_CORES,
+        executor_memory=SNOWFLAKE_EXPORT_EXECUTOR_MEMORY,
     )
 
     try:

@@ -102,3 +102,5 @@ check models :  docker compose exec dbt-snowflake dbt parse
 run dbt-snowflake from docker: docker compose exec dbt-snowflake dbt run --target dev
 run tests: docker compose exec dbt-snowflake dbt test --target dev
 run doc generation: docker compose exec dbt-snowflake dbt docs generate --target dev
+
+See docker resources consumption: docker stats --no-stream

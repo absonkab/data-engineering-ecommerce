@@ -148,6 +148,28 @@ SPARK_WORKER_CHECK_INTERVAL = 5
 MIN_FREE_CORES = 1
 MIN_FREE_MEMORY_MB = 1024
 
+# Jobs name
+BRONZE_LAYER_STREAM_APP_NAME = "Ecommerce-kafka-streaming-BronzeLayer"
+SILVER_LAYER_STREAM_APP_NAME = "Ecommerce-silver-streaming"
+HOURLY_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-hourly-metrics-streaming"
+PRODUCT_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-product-metrics-streaming"
+USER_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-user-metrics-streaming"
+
+HOURLY_MET_SERVING_APP_NAME = "Serving-hourly-metrics-publisher"
+PRODUCT_MET_SERVING_APP_NAME = "Serving-product-metrics-publisher"
+USER_MET_SERVING_APP_NAME = "Serving-user-metrics-publisher"
+SNOWFLAKE_EXPORT_APP_NAME = "Ecommerce-gold-to-snowflake-export"
+
+#  Spark job resources of Postgres serving
+SERVING_JOB_MAX_CORES = 1
+SERVING_JOB_EXECUTOR_CORES = 1
+SERVING_JOB_EXECUTOR_MEMORY = "1g"
+
+#  Spark job resources of Snowflake export
+SNOWFLAKE_EXPORT_MAX_CORES = 1
+SNOWFLAKE_EXPORT_EXECUTOR_CORES = 1
+SNOWFLAKE_EXPORT_EXECUTOR_MEMORY = "1g"
+
 # ============================================================
 # Snowflake configuration
 # ============================================================

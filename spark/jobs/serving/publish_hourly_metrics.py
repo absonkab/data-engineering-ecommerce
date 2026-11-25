@@ -4,13 +4,18 @@ from jobs.serving.common.postgres import (
     upsert_from_staging,
     write_to_staging,
 )
-from jobs.serving.common.spark import get_spark_session
+# from jobs.serving.common.spark import get_spark_session
+from utils.spark_session import create_spark_session
 
 # Configuration 
 
 from config.config import (
     GOLD_PATH,
-    GOLD_HOURLY_METRICS_TABLE
+    GOLD_HOURLY_METRICS_TABLE,
+    HOURLY_MET_SERVING_APP_NAME,
+    SERVING_JOB_MAX_CORES,
+    SERVING_JOB_EXECUTOR_CORES,
+    SERVING_JOB_EXECUTOR_MEMORY
 )
 HOURLY_GOLD_PATH = f"{GOLD_PATH}/hourly_metrics"
 STAGING_TABLE = f"{GOLD_HOURLY_METRICS_TABLE}_staging"
@@ -61,8 +66,11 @@ def main() -> None:
     """
 
     # Create the SparkSession through the shared infrastructure
-    spark = get_spark_session(
-        "ServingHourlyMetricsPublisher"
+    spark = create_spark_session(
+        app_name=HOURLY_MET_SERVING_APP_NAME,
+        max_cores=SERVING_JOB_MAX_CORES,
+        executor_cores=SERVING_JOB_EXECUTOR_CORES,
+        executor_memory=SERVING_JOB_EXECUTOR_MEMORY,
     )
 
     try:

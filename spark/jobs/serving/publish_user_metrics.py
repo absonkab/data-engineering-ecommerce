@@ -5,14 +5,19 @@ from jobs.serving.common.postgres import (
     upsert_from_staging,
     write_to_staging,
 )
-from jobs.serving.common.spark import get_spark_session
+# from jobs.serving.common.spark import get_spark_session
+from utils.spark_session import create_spark_session
 
 
 # PostgreSQL configuration
 
 from config.config import (
     GOLD_PATH,
-    GOLD_USER_METRICS_TABLE
+    GOLD_USER_METRICS_TABLE,
+    USER_MET_SERVING_APP_NAME,
+    SERVING_JOB_MAX_CORES,
+    SERVING_JOB_EXECUTOR_CORES,
+    SERVING_JOB_EXECUTOR_MEMORY
 )
 
 # Location of the Gold user metrics dataset.
@@ -82,8 +87,11 @@ def main() -> None:
     """
 
     # Create the SparkSession through the shared infrastructure helper.
-    spark = get_spark_session(
-        "ServingUserMetricsPublisher"
+    spark = create_spark_session(
+        app_name=USER_MET_SERVING_APP_NAME,
+        max_cores=SERVING_JOB_MAX_CORES,
+        executor_cores=SERVING_JOB_EXECUTOR_CORES,
+        executor_memory=SERVING_JOB_EXECUTOR_MEMORY,
     )
 
     try:

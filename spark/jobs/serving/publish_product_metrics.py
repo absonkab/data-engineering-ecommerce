@@ -4,14 +4,19 @@ from jobs.serving.common.postgres import (
     upsert_from_staging,
     write_to_staging,
 )
-from jobs.serving.common.spark import get_spark_session
+# from jobs.serving.common.spark import get_spark_session
+from utils.spark_session import create_spark_session
 
 
 # PostgreSQL configuration
 
 from config.config import (
     GOLD_PATH,
-    GOLD_PRODUCT_METRICS_TABLE
+    GOLD_PRODUCT_METRICS_TABLE,
+    PRODUCT_MET_SERVING_APP_NAME,
+    SERVING_JOB_MAX_CORES,
+    SERVING_JOB_EXECUTOR_CORES,
+    SERVING_JOB_EXECUTOR_MEMORY
 )
 # Location of the Gold product metrics dataset.
 PRODUCT_GOLD_PATH = f"{GOLD_PATH}/product_metrics"
@@ -77,8 +82,11 @@ def main() -> None:
     """
 
     # Create the SparkSession through the shared infrastructure
-    spark = get_spark_session(
-        "ServingProductMetricsPublisher"
+    spark = create_spark_session(
+        app_name=PRODUCT_MET_SERVING_APP_NAME,
+        max_cores=SERVING_JOB_MAX_CORES,
+        executor_cores=SERVING_JOB_EXECUTOR_CORES,
+        executor_memory=SERVING_JOB_EXECUTOR_MEMORY,
     )
 
     try:

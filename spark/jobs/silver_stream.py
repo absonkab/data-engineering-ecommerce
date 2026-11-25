@@ -254,7 +254,7 @@ def main():
 
     # Spark Session
 
-    spark = create_spark_session("ecommerce-silver")
+    spark = create_spark_session()
 
 
     # Read Bronze

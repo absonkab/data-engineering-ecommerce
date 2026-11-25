@@ -25,7 +25,8 @@ from config.config import (
     SILVER_PATH,
     GOLD_PATH,
     GOLD_CHECKPOINT_PATH,
-    WATERMARK_DELAY
+    WATERMARK_DELAY,
+    HOURLY_GOLD_LAYER_STREAM_APP_NAME
 )
 
 
@@ -149,7 +150,7 @@ def main():
 
     # Spark session
 
-    spark = create_spark_session("ecommerce-hourly-metrics")
+    spark = create_spark_session(HOURLY_GOLD_LAYER_STREAM_APP_NAME)
 
 
     # Read Silver

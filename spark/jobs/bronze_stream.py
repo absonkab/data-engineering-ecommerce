@@ -16,7 +16,13 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, from_json
 
 from utils.spark_session import create_spark_session
-from config.config import KAFKA_BROKER, KAFKA_TOPIC, BRONZE_PATH, BRONZE_CHECKPOINT_PATH
+from config.config import (
+    KAFKA_BROKER, 
+    KAFKA_TOPIC, 
+    BRONZE_PATH, 
+    BRONZE_CHECKPOINT_PATH, 
+    BRONZE_LAYER_STREAM_APP_NAME
+)
 from schemas.ecommerce_schema import EVENT_SCHEMA
 
 
@@ -96,7 +102,7 @@ def main():
 
     # Spark Session: Use of our centralized function to create Spark Session.
 
-    spark = create_spark_session("EcommerceKafkaStreaming")
+    spark = create_spark_session(BRONZE_LAYER_STREAM_APP_NAME)
 
 
     # Kafka flow reading

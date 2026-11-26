@@ -25,7 +25,8 @@ from config.config import (
     QUARANTINE_PATH,
     SILVER_CHECKPOINT_PATH,
     QUARANTINE_CHECKPOINT_PATH,
-    WATERMARK_DELAY
+    WATERMARK_DELAY,
+    SILVER_LAYER_STREAM_APP_NAME
 )
 
 
@@ -254,7 +255,7 @@ def main():
 
     # Spark Session
 
-    spark = create_spark_session()
+    spark = create_spark_session(SILVER_LAYER_STREAM_APP_NAME)
 
 
     # Read Bronze

@@ -8,14 +8,16 @@ Centralizing this logic makes it possible to:
 - simplify future changes to the Spark configuration.
 """
 
+from typing import Optional
+
 from pyspark.sql import SparkSession
 
 
 def create_spark_session(
-    app_name: str = "EcommerceStreaming",
-    max_cores: int | None = None,
-    executor_cores: int | None = None,
-    executor_memory: str | None = None,
+    app_name: str = "Ecommerce-Streaming-App",
+    max_cores: Optional[int] = None,
+    executor_cores: Optional[int] = None,
+    executor_memory: Optional[str] = None,
 ) -> SparkSession:
     """
     Creates and configures a SparkSession.

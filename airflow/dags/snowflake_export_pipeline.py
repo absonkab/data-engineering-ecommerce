@@ -36,7 +36,8 @@ from plugins.dbt import (
 # Local export directory shared between Docker containers
 from config.config import (
     GOLD_PATH,
-    GOLD_DATASETS
+    GOLD_DATASETS,
+    AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS
 )
 
 # DAG definition
@@ -121,6 +122,7 @@ with DAG(
     run_spark_export = PythonOperator(
         task_id="run_spark_export",
         python_callable=export_gold_to_snowflake,
+        pool=AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS,
     )
 
     # Task 4: Validate generated exports

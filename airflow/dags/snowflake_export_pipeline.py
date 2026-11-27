@@ -37,7 +37,9 @@ from plugins.dbt import (
 from config.config import (
     GOLD_PATH,
     GOLD_DATASETS,
-    AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS
+    AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS,
+    DBT_SNOWFLAKE_CONTAINER,
+    DBT_SNOWFLAKE_PROJECT_DIR
 )
 
 # DAG definition
@@ -49,15 +51,18 @@ with DAG(
     start_date=datetime(2026, 1, 1),
 
     # Manual execution during development
-    schedule=None,
+    # schedule=None,
     # Run the pipeline automatically at the beginning of every hour.
-    # schedule="0 * * * *",
+    schedule="0 * * * *",
 
     # Only one active execution at a time
     max_active_runs=1,
 
     # Do not create historical DAG runs
     catchup=False,
+
+    # Automatically active the dag: True for no & False for yes
+    is_paused_upon_creation=False,
 
     description=(
         "Export Gold datasets to Parquet and load them "
@@ -139,22 +144,34 @@ with DAG(
         python_callable=load_data_into_snowflake,
     )
 
-    # Task 6: Run dbt models
+    # Task 6: Run dbt snowflake models
     run_dbt = PythonOperator(
-        task_id="run_dbt_models",
-        python_callable=run_dbt_models
+        task_id="run_dbt_snowflake_models",
+        python_callable=run_dbt_models,
+        op_kwargs={
+            "container_name": DBT_SNOWFLAKE_CONTAINER,
+            "project_dir": DBT_SNOWFLAKE_PROJECT_DIR,
+        },
     )
 
-    # Task 7: Run dbt tests
+    # Task 7: Run dbt snowflake tests
     test_dbt = PythonOperator(
-        task_id="test_dbt_models",
-        python_callable=test_dbt_models
+        task_id="test_dbt_snowflake_models",
+        python_callable=test_dbt_models,
+        op_kwargs={
+            "container_name": DBT_SNOWFLAKE_CONTAINER,
+            "project_dir": DBT_SNOWFLAKE_PROJECT_DIR,
+        },
     )
 
-    # Task 8: generate dbt documentation
+    # Task 8: generate dbt snowflake documentation
     generate_docs = PythonOperator(
-        task_id="generate_dbt_docs",
-        python_callable=generate_dbt_docs
+        task_id="generate_dbt_snowflake_docs",
+        python_callable=generate_dbt_docs,
+        op_kwargs={
+            "container_name": DBT_SNOWFLAKE_CONTAINER,
+            "project_dir": DBT_SNOWFLAKE_PROJECT_DIR,
+        },
     )
 
     # Task dependencies
@@ -163,7 +180,7 @@ with DAG(
     # 3. Execute Spark export
     # 4. Validate generated exports
     # 5. Load data into snowflake stage
-    # 6. Run dbt models
-    # 7. Run dbt tests
-    # 8. generate dbt documentation
+    # 6. Run dbt snowflake models
+    # 7. Run dbt snowflake tests
+    # 8. generate dbt snowflake documentation
     check_gold >> check_worker >> run_spark_export >> validate_exports >> load_snowflake >> run_dbt >> test_dbt >> generate_docs

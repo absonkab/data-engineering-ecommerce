@@ -21,7 +21,8 @@ from config.config import (
     KAFKA_TOPIC, 
     BRONZE_PATH, 
     BRONZE_CHECKPOINT_PATH, 
-    BRONZE_LAYER_STREAM_APP_NAME
+    BRONZE_LAYER_STREAM_APP_NAME,
+    KAFKA_SPARK_PACKAGE
 )
 from schemas.ecommerce_schema import EVENT_SCHEMA
 
@@ -102,7 +103,12 @@ def main():
 
     # Spark Session: Use of our centralized function to create Spark Session.
 
-    spark = create_spark_session(BRONZE_LAYER_STREAM_APP_NAME)
+    spark = create_spark_session(
+        app_name=BRONZE_LAYER_STREAM_APP_NAME,
+        jars_packages=[
+            KAFKA_SPARK_PACKAGE,
+        ],
+    )
 
 
     # Kafka flow reading

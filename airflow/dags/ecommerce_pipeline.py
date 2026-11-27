@@ -9,146 +9,25 @@ Airflow is responsible for orchestration only.
 The actual data processing remains implemented in Spark and dbt.
 """
 
-import os
-import docker
-
 from datetime import datetime
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.docker.operators.docker import DockerOperator
 
-# Shared Docker network used by the Compose services.
-DOCKER_NETWORK = "data-engineering-ecommerce_default"
+from plugins.postgres import Create_gold_tables
+from plugins.serving import publish_gold_metrics
+from plugins.dbt import (
+    run_dbt_models,
+    test_dbt_models,
+    generate_dbt_docs
+)
 
-# Existing dbt image 
-DBT_IMAGE = "data-engineering-ecommerce-dbt:latest"
-
-
-def CheckExistingOrCreate_gold_tables():
-    """
-    Create the PostgreSQL Gold serving tables by executing the SQL script.
-
-    """
-
-    client = docker.from_env()
-
-    try:
-        # Reuse the existing PostgreSQL container.
-        container = client.containers.get("postgres")
-        container.reload()
-
-        if container.status != "running":
-            raise AirflowException(
-                f"PostgreSQL must be running. Current status: {container.status}"
-            )
-
-        # Execute the SQL script inside the PostgreSQL container.
-        command = [
-            "psql",
-            "-v",
-            "ON_ERROR_STOP=1",
-            "-U",
-            os.getenv("POSTGRES_USER"),
-            "-d",
-            os.getenv("POSTGRES_DB", "ecommerce"),
-            "-f",
-            "/docker-entrypoint-initdb.d/create_gold_tables.sql",
-        ]
-
-        print(f"Executing SQL script: {' '.join(command)}")
-
-        result = container.exec_run(
-            cmd=command,
-            stdout=True,
-            stderr=True,
-            demux=True,
-        )
-
-        stdout, stderr = result.output or (None, None)
-
-        if stdout:
-            print(stdout.decode("utf-8", errors="replace"))
-
-        if stderr:
-            print(stderr.decode("utf-8", errors="replace"))
-
-        if result.exit_code != 0:
-            raise AirflowException(
-                f"Gold table creation failed (exit code: {result.exit_code})"
-            )
-
-        print("Gold serving tables created or already available.")
-
-    finally:
-        client.close()
-
-
-def publish_gold_metrics():
-    """
-    Execute the three Serving jobs inside the existing spark-job container 
-    and its Spark environment.
-
-    """
-
-    client = docker.from_env()
-
-    try:
-        # Reuse the existing Spark job container.
-        container = client.containers.get("spark-job")
-        container.reload()
-
-        if container.status != "running":
-            raise AirflowException(
-                f"spark-job must be running. Current status: {container.status}"
-            )
-
-        # Run the three Serving jobs sequentially.
-        commands = [
-            [
-                "python3",
-                "/opt/spark/jobs/serving/publish_hourly_metrics.py",
-            ],
-            [
-                "python3",
-                "/opt/spark/jobs/serving/publish_product_metrics.py",
-            ],
-            [
-                "python3",
-                "/opt/spark/jobs/serving/publish_user_metrics.py",
-            ],
-        ]
-
-        for command in commands:
-            print(f"Executing: {' '.join(command)}")
-
-            result = container.exec_run(
-                cmd=command,
-                stdout=True,
-                stderr=True,
-                demux=True,
-            )
-
-            stdout, stderr = result.output or (None, None)
-
-            if stdout:
-                print(stdout.decode("utf-8", errors="replace"))
-
-            if stderr:
-                print(stderr.decode("utf-8", errors="replace"))
-
-            if result.exit_code != 0:
-                raise AirflowException(
-                    f"Serving job failed: {' '.join(command)} "
-                    f"(exit code: {result.exit_code})"
-                )
-
-            print(f"Successfully completed: {' '.join(command)}")
-
-    finally:
-        client.close()
+from config.config import (
+    DBT_CONTAINER,
+    DBT_PROJECT_DIR,
+    AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS
+)
 
 
 with DAG(
@@ -167,6 +46,9 @@ with DAG(
 
     # Do not create historical DAG runs.
     catchup=False,
+
+    # Automatically active the dag: True for no & False for yes
+    is_paused_upon_creation=False,
 
     description="Orchestration of the ecommerce Data Engineering pipeline.",
 
@@ -200,8 +82,8 @@ with DAG(
 
     # Task 2: Create the PostgreSQL Gold serving tables.
     check_or_create_tables = PythonOperator(
-        task_id="CheckExistingOrCreate_gold_tables",
-        python_callable=CheckExistingOrCreate_gold_tables,
+        task_id="Create_gold_tables_if_not_exist",
+        python_callable=Create_gold_tables,
     )
 
 
@@ -209,68 +91,44 @@ with DAG(
     run_serving = PythonOperator(
         task_id="run_serving",
         python_callable=publish_gold_metrics,
+        pool=AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS,
     )
 
     # Task 4: Run dbt transformations inside an isolated Docker container.
     # This Build the analytics models with dbt.
-    run_dbt = DockerOperator(
-        task_id="run_dbt",
-
-        # Self-contained image containing dbt and the project.
-        image=DBT_IMAGE,
-
-        # Run dbt against the existing project.
-        command="dbt run",
-
-        # dbt project directory inside the container.
-        working_dir="/usr/app/dbt",
-
-        # Tell dbt where profiles.yml is located.
-        environment={
-            "DBT_PROFILES_DIR": "/usr/app/dbt",
-
-            # PostgreSQL connection settings.
-            # These values come from Airflow's environment.
-            "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "postgres"),
-            "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "5432"),
-            "POSTGRES_USER": os.getenv("POSTGRES_USER"),
-            "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "POSTGRES_DB": os.getenv("POSTGRES_DB", "ecommerce"),
+    run_dbt = PythonOperator(
+        task_id="dbt_postgres_run",
+        python_callable=run_dbt_models,
+        op_kwargs={
+            "container_name": DBT_CONTAINER,
+            "project_dir": DBT_PROJECT_DIR,
         },
-
-        # Remove the temporary container after a successful run.
-        auto_remove="success",
-
-        # Put the temporary dbt container on the same Docker Compose network as PostgreSQL.
-        network_mode=DOCKER_NETWORK,
-
-        # Keep dbt output visible in Airflow logs.
-        tty=True,
     )
 
     # Task 5: Validate the analytics models.
-    test_dbt = DockerOperator(
-        task_id="test_dbt",
-        image= DBT_IMAGE,
-        command="dbt test",
-        working_dir="/usr/app/dbt",
-        environment={
-            "DBT_PROFILES_DIR": "/usr/app/dbt",
-            "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "postgres"),
-            "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "5432"),
-            "POSTGRES_USER": os.getenv("POSTGRES_USER"),
-            "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "POSTGRES_DB": os.getenv("POSTGRES_DB", "ecommerce"),
+    test_dbt = PythonOperator(
+        task_id="dbt_postgres_test",
+        python_callable=test_dbt_models,
+        op_kwargs={
+            "container_name": DBT_CONTAINER,
+            "project_dir": DBT_PROJECT_DIR,
         },
-        auto_remove="success",
-        network_mode=DOCKER_NETWORK,
-        tty=True,
     )
 
+    # Task 6: Generate the dbt documentation.
+    dbt_docs = PythonOperator(
+        task_id="dbt_postgres_docs",
+        python_callable=generate_dbt_docs,
+        op_kwargs={
+            "container_name": DBT_CONTAINER,
+            "project_dir": DBT_PROJECT_DIR,
+        },
+    )
     # Task dependencies:
     # 1. Verify that Gold datasets are available.
     # 2. Create the PostgreSQL serving tables.
     # 3. Publish Gold metrics to PostgreSQL.
     # 4. Build analytics models with dbt.
     # 5. Validate the dbt models.
-    check_gold >> check_or_create_tables >> run_serving >> run_dbt >> test_dbt
+    # 6. Generate the dbt documentation.
+    check_gold >> check_or_create_tables >> run_serving >> run_dbt >> test_dbt >> dbt_docs

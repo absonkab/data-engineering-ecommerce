@@ -1,3 +1,8 @@
+volumes:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_log:
+
 services:
 
   # -------------------------------------------------------------------
@@ -104,6 +109,9 @@ services:
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
 
   # -------------------------------------------------------------------
   # KAFKA Services
@@ -115,6 +123,8 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
@@ -323,6 +333,7 @@ services:
       # Connection to the PostgreSQL database used by Airflow to store its metadata: DAGs, tasks, runs, etc.
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW_UID: "50000" # Allows Airflow to use the correct UID inside the container.
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False" # auto active dags
 
       # Airflow user configuration.
       AIRFLOW_ADMIN_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
@@ -331,17 +342,17 @@ services:
       AIRFLOW_ADMIN_LASTNAME: ${AIRFLOW_ADMIN_LASTNAME}
       AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
 
+    volumes:
+      - ./airflow/scripts:/opt/airflow/scripts:ro
+      - ./config:/opt/airflow/config
+
     command: >
       bash -c "
       airflow db migrate &&
-      airflow users create
-      --username ${AIRFLOW_ADMIN_USERNAME}
-      --password ${AIRFLOW_ADMIN_PASSWORD}
-      --firstname ${AIRFLOW_ADMIN_FIRSTNAME}
-      --lastname ${AIRFLOW_ADMIN_LASTNAME}
-      --role Admin
-      --email ${AIRFLOW_ADMIN_EMAIL}
-      || true
+      (
+        airflow users create --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} || true
+      ) &&
+      python /opt/airflow/scripts/init_pools.py
       "
 
 # Airflow webserver
@@ -359,6 +370,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # Disables the loading of example DAGs. This keeps our interface clean.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC # Executes the DAGs using the UTC time zone.
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False" # auto active dags
 
       # PostgreSQL variables used by Airflow and DockerOperator.
       POSTGRES_HOST: ${POSTGRES_HOST}
@@ -377,6 +389,8 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags          # The project's DAGs will be stored here.
       - ./airflow/logs:/opt/airflow/logs          # Airflow logs remain accessible from Windows.
+      - ./airflow/plugins:/opt/airflow/plugins            # plugins for dags script.
+      - ./config:/opt/airflow/config
       - /var/run/docker.sock:/var/run/docker.sock # Gives Airflow access to the Docker daemon.
     command: webserver
 
@@ -392,6 +406,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false" # No example DAGs.
       AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC  # Default time zone.
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False" # auto active dags
 
       # PostgreSQL variables used by Airflow and DockerOperator.
       POSTGRES_HOST: ${POSTGRES_HOST}

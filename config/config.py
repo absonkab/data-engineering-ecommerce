@@ -12,6 +12,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # -------------------------------------------------------------------
+# Docker
+# -------------------------------------------------------------------
+
+# Shared Docker network used by the Compose services.
+DOCKER_NETWORK = "data-engineering-ecommerce_default"
+
+# Container names
+SPARK_CONTAINER = "spark-job"
+POSTGRES_CONTAINER = "postgres"
+DBT_SNOWFLAKE_CONTAINER = "dbt-snowflake"
+DBT_CONTAINER = "dbt"
+
+# -------------------------------------------------------------------
 # Kafka configuration
 # -------------------------------------------------------------------
 
@@ -132,9 +145,6 @@ GOLD_HOURLY_METRICS_TABLE = "gold_hourly_metrics"
 GOLD_PRODUCT_METRICS_TABLE = "gold_product_metrics"
 GOLD_USER_METRICS_TABLE = "gold_user_metrics"
 
-# Existing Spark job container
-SPARK_CONTAINER = "spark-job"
-
 # Spark Master REST API
 SPARK_MASTER_URL = "http://spark:8080/json/"
 
@@ -149,16 +159,16 @@ MIN_FREE_CORES = 1
 MIN_FREE_MEMORY_MB = 1024
 
 # Jobs name
-BRONZE_LAYER_STREAM_APP_NAME = "Ecommerce-kafka-streaming-BronzeLayer"
-SILVER_LAYER_STREAM_APP_NAME = "Ecommerce-silver-streaming"
-HOURLY_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-hourly-metrics-streaming"
-PRODUCT_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-product-metrics-streaming"
-USER_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-user-metrics-streaming"
+BRONZE_LAYER_STREAM_APP_NAME = "Ecommerce-kafka_streaming-BronzeLayer"
+SILVER_LAYER_STREAM_APP_NAME = "Ecommerce-silver_streaming"
+HOURLY_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-hourly-metrics_streaming"
+PRODUCT_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-product-metrics_streaming"
+USER_GOLD_LAYER_STREAM_APP_NAME = "Ecommerce-user-metrics_streaming"
 
-HOURLY_MET_SERVING_APP_NAME = "Serving-hourly-metrics-publisher"
-PRODUCT_MET_SERVING_APP_NAME = "Serving-product-metrics-publisher"
-USER_MET_SERVING_APP_NAME = "Serving-user-metrics-publisher"
-SNOWFLAKE_EXPORT_APP_NAME = "Ecommerce-gold-to-snowflake-export"
+HOURLY_MET_SERVING_APP_NAME = "Serving-hourly-metrics-publisher_batch"
+PRODUCT_MET_SERVING_APP_NAME = "Serving-product-metrics-publisher_batch"
+USER_MET_SERVING_APP_NAME = "Serving-user-metrics-publisher_batch"
+SNOWFLAKE_EXPORT_APP_NAME = "Ecommerce-gold-to-snowflake-export_batch"
 
 #  Spark job resources of Postgres serving
 SERVING_JOB_MAX_CORES = 1
@@ -170,19 +180,30 @@ SNOWFLAKE_EXPORT_MAX_CORES = 1
 SNOWFLAKE_EXPORT_EXECUTOR_CORES = 1
 SNOWFLAKE_EXPORT_EXECUTOR_MEMORY = "1g"
 
+# postgres jars packages
+KAFKA_SPARK_PACKAGE = (
+    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1"
+)
+POSTGRES_SPARK_PACKAGE = (
+    "org.postgresql:postgresql:42.7.8"
+)
+
+# ============================================================
+# Airflow configuration
+# ============================================================
+
+AIRFLOW_POOL_NAME_FOR_SPARK_CONCUR_ACCESS = "spark_batch_pool"
+
 # ============================================================
 # Snowflake configuration
 # ============================================================
 
-# Existing Snowflake loader container
-SNOWFLAKE_CONTAINER = "dbt-snowflake"
-
 SNOWFLAKE_CONFIG = {
-    "account": os.environ["SNOWFLAKE_ACCOUNT"],
-    "user": os.environ["SNOWFLAKE_USER"],
-    "private_key_file": os.environ["SNOWFLAKE_PRIVATE_KEY_PATH"],
-    "role": os.environ["SNOWFLAKE_ROLE"],
-    "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+    "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+    "user": os.getenv("SNOWFLAKE_USER"),
+    "private_key_file": os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH"),
+    "role": os.getenv("SNOWFLAKE_ROLE"),
+    "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
     "database": "ECOMMERCE_DB",
     "schema": "RAW",
 }
@@ -207,7 +228,16 @@ SNOWFLAKE_DATASETS = {
 }
 
 # ============================================================
-# Snowflake dbt configuration
+# dbt configuration
 # ============================================================
 
-SNOWFLAKE_DBT_PROJECT_DIR = "/usr/app/dbt_snowflake"
+# Existing dbt image 
+DBT_IMAGE = "data-engineering-ecommerce-dbt:latest"
+
+DBT_PROJECT_DIR = "/usr/app/dbt"
+
+# ============================================================
+# Snowflake-dbt configuration
+# ============================================================
+
+DBT_SNOWFLAKE_PROJECT_DIR = "/usr/app/dbt_snowflake"

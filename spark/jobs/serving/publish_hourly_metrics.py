@@ -15,7 +15,8 @@ from config.config import (
     HOURLY_MET_SERVING_APP_NAME,
     SERVING_JOB_MAX_CORES,
     SERVING_JOB_EXECUTOR_CORES,
-    SERVING_JOB_EXECUTOR_MEMORY
+    SERVING_JOB_EXECUTOR_MEMORY,
+    POSTGRES_SPARK_PACKAGE
 )
 HOURLY_GOLD_PATH = f"{GOLD_PATH}/hourly_metrics"
 STAGING_TABLE = f"{GOLD_HOURLY_METRICS_TABLE}_staging"
@@ -66,11 +67,15 @@ def main() -> None:
     """
 
     # Create the SparkSession through the shared infrastructure
+    # spark = get_spark_session(app_name=HOURLY_MET_SERVING_APP_NAME)
     spark = create_spark_session(
         app_name=HOURLY_MET_SERVING_APP_NAME,
         max_cores=SERVING_JOB_MAX_CORES,
         executor_cores=SERVING_JOB_EXECUTOR_CORES,
         executor_memory=SERVING_JOB_EXECUTOR_MEMORY,
+        jars_packages=[
+            POSTGRES_SPARK_PACKAGE,
+        ],
     )
 
     try:

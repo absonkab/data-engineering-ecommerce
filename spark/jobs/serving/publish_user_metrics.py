@@ -17,7 +17,8 @@ from config.config import (
     USER_MET_SERVING_APP_NAME,
     SERVING_JOB_MAX_CORES,
     SERVING_JOB_EXECUTOR_CORES,
-    SERVING_JOB_EXECUTOR_MEMORY
+    SERVING_JOB_EXECUTOR_MEMORY,
+    POSTGRES_SPARK_PACKAGE
 )
 
 # Location of the Gold user metrics dataset.
@@ -87,11 +88,15 @@ def main() -> None:
     """
 
     # Create the SparkSession through the shared infrastructure helper.
+    # spark = get_spark_session(app_name=USER_MET_SERVING_APP_NAME)
     spark = create_spark_session(
         app_name=USER_MET_SERVING_APP_NAME,
         max_cores=SERVING_JOB_MAX_CORES,
         executor_cores=SERVING_JOB_EXECUTOR_CORES,
         executor_memory=SERVING_JOB_EXECUTOR_MEMORY,
+        jars_packages=[
+            POSTGRES_SPARK_PACKAGE,
+        ],
     )
 
     try:

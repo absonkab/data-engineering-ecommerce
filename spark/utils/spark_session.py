@@ -8,7 +8,7 @@ Centralizing this logic makes it possible to:
 - simplify future changes to the Spark configuration.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from pyspark.sql import SparkSession
 
@@ -18,6 +18,7 @@ def create_spark_session(
     max_cores: Optional[int] = None,
     executor_cores: Optional[int] = None,
     executor_memory: Optional[str] = None,
+    jars_packages: Optional[List[str]] = None,
 ) -> SparkSession:
     """
     Creates and configures a SparkSession.
@@ -45,13 +46,12 @@ def create_spark_session(
         SparkSession.builder
         .appName(app_name)
         .master("spark://spark:7077")
-        .config(
-            "spark.jars.packages",
-            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",
-        )
     )
 
     # Apply resource configuration only when explicitly provided.
+    if jars_packages is not None:
+        builder = builder.config("spark.jars.packages", ",".join(jars_packages),)
+
     if max_cores is not None:
         builder = builder.config("spark.cores.max", str(max_cores))
 

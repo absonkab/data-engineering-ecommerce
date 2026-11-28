@@ -386,9 +386,10 @@ The project runs five Spark Structured Streaming applications concurrently:
 
 The default local configuration allocates:
 
-- **5 CPU cores** to the Spark worker
+- **6 CPU cores** to the Spark worker
 - **6 GB RAM** to the Spark worker
 - **1 CPU core maximum** per streaming application
+- **1 CPU core left** for batch applications
 
 These settings help distribute resources across the streaming applications in a local development environment.
 
@@ -451,6 +452,70 @@ These scripts are executed automatically when PostgreSQL initializes a new, empt
 
 For an existing database, the Airflow PostgreSQL DAG also includes a task `create_gold_tables` to create the serving tables (from `create_gold_tables.sql`) if necessary.
 
+#### Services Starting order
+
+Follow these steps to build and start the complete Data Engineering & Observability Pipeline.
+
+#### 5.1. Start the core infrastructure
+
+Start PostgreSQL, ZooKeeper and Kafka:
+
+```powershell
+docker compose up -d postgres zookeeper kafka
+```
+
+Initialize the Kafka topic:
+
+```powershell
+docker compose up kafka-init
+```
+
+#### 5.2. Start the Spark cluster
+
+```powershell
+docker compose up -d spark spark-worker spark-job
+```
+
+#### 5.3. Start the streaming applications
+
+Launch the five Spark Structured Streaming applications:
+
+```powershell
+docker compose up -d bronze-stream silver-stream gold-hourly gold-product gold-user
+```
+
+#### 5.4. Start the event producer
+
+```powershell
+docker compose up -d ingestion
+```
+
+The producer continuously publishes simulated e-commerce events to the `ecommerce_events` Kafka topic.
+
+The streaming applications process these events through the Bronze, Silver and Gold layers.
+
+#### 5.5. Start dbt services
+
+```powershell
+docker compose up -d dbt dbt-snowflake
+```
+
+#### 5.6. Initialize and start Airflow
+
+```powershell
+docker compose up -d airflow-init airflow-webserver airflow-scheduler
+```
+
+Airflow initializes its metadata database, creates the administrator account and configures the Spark batch execution pool.
+
+#### 5.7. Start pgadmin service
+
+Optional start pgadmin service 
+
+```powershell
+docker compose up -d pgadmin
+```
+Then connect postgres so you could check data stored.
 
 ### 6. Check the running containers
 
@@ -480,9 +545,15 @@ docker exec kafka kafka-topics --bootstrap-server kafka:9092 --list
 
 The `ecommerce_events` topic should be present.
 
-Confirm that the ingestion service produces events and that the Spark Structured Streaming applications process them.
+See more about Kafka topics:
 
-Check that the Bronze, Silver and Gold datasets are being generated.
+```bash
+docker compose exec kafka kafka-topics --bootstrap-server kafka:9092 --describe --topic ecommerce_events
+```
+
+Confirm that the `ingestion service` produces events and that the Spark Structured Streaming applications process them.
+
+Check that the `Bronze, Silver and Gold datasets` are being generated.
 
 ## Running the Pipelines
 
@@ -501,9 +572,9 @@ To trigger it manually:
 
 ### Snowflake Pipeline
 
-The Snowflake pipeline is currently triggered manually.
+The Snowflake pipeline is also triggered hourly by airflow.
 
-Before triggering it, make sure the following services are available:
+Before triggering manually it, make sure the following services are available:
 
 - Airflow Scheduler.
 - Spark Master.
@@ -649,6 +720,8 @@ To restart services:
 ```bash
 docker compose up -d
 ```
+
+**Note:** The Docker Compose named volumes preserve Kafka and ZooKeeper data across container restarts. The local `lake/` directory stores the Parquet datasets and Spark checkpoints.
 
 ## Troubleshooting
 
@@ -899,7 +972,11 @@ For Snowflake, check that the RAW tables contain the expected records.
         - [x] Consolidated Gold files check task
         - [x] Snowflake export task : Load gold data into snowflake RAW stage
         - [x] dbt task (Run dbt transformations)
-- [ ] BI dashboard
+- [x] BI dashboard
+    - [ ] Snowsight
+    - [ ] PowerBI
+    - [ ] Métabase
+    - [ ] Grafana
 - [ ] Final documentation and repository cleanup
 
 ## Future Improvements

@@ -1,0 +1,209 @@
+Pour ce projet Snowflake, nous allons connecter Snowflake à notre pipeline existant (Spark streaming)
+Nous allons notamment réutiliser les trois datasets Gold déjà présents dans notre projet :
+- hourly_metrics
+- product_metrics
+- user_metrics
+
+Structure existante:
+lake/
+  bronze/
+  silver/
+  gold/
+    hourly_metrics/
+    product_metrics/
+    user_metrics/
+
+Architecture cible :
+E-COMMERCE DATA PIPELINE : Kafka -> Spark -> Bronze -> Silver -> Gold --Parquet--> SNOWFLAKE -> ECOMMERCE_DB -> RAW -> STAGING (dbt) -> INTERMEDIATE (dbt) -> MARTS (dbt) -> POWER BI (étape suivante)
+
+Notre lake:
+Get-ChildItem .\lake\gold\hourly_metrics -Filter *.parquet -File | Measure-Object  -> Count    : 51
+Get-ChildItem .\lake\gold\product_metrics -Filter *.parquet -File | Measure-Object -> Count    : 130
+Get-ChildItem .\lake\gold\user_metrics -Filter *.parquet -File | Measure-Object    -> Count    : 246
+
+Analyse de résultat:
+| Dataset         | Nombre de fichiers Parquet |
+|-----------------|---------------------------:|
+| hourly_metrics  | 51                         |
+| product_metrics | 130                        |
+| user_metrics    | 246                        |
+| Total           | 427                        |
+|_________________|____________________________|
+
+Spark a produit plusieurs fichiers Parquet au fil des traitements, en raison du fonctionnement de Structured Streaming. 
+Ce n'est pas un problème. Snowflake sait charger plusieurs fichiers simultanément avec COPY INTO.
+Mais nous allons d'abord envisager une consolidation des fichiers avec Spark pour obtenir trois datasets Parquet plus compacts.
+
+Nous allons utiliser le stage déjà créé ECOMMERCE_DB.RAW.ECOMMERCE_RAW_STAGE et organiser les fichiers ainsi :
+ECOMMERCE_RAW_STAGE/
+│
+├── hourly_metrics/
+│   └── hourly_metrics.parquet
+│
+├── product_metrics/
+│   └── product_metrics.parquet
+│
+└── user_metrics/
+    └── user_metrics.parquet
+
+
+| Étape | Travail                                    |
+|-------|--------------------------------------------|
+| 1     | Vérifier les volumes et les schémas        |
+| 2     | Consolider les fichiers Parquet avec Spark |
+| 3     | Transférer les fichiers vers Snowflake     |
+| 4     | Vérifier les fichiers avec `LIST`          |
+| 5     | Découvrir `INFER_SCHEMA`                   |
+| 6     | Créer les tables RAW                       |
+| 7     | Charger les données avec `COPY INTO`       |
+| 8     | Vérifier les données chargées              |
+
+volume réel des données (taille totale en octets de chaque dataset) :
+(Get-ChildItem .\lake\gold\hourly_metrics -Filter *.parquet -File | Measure-Object -Property Length -Sum).Sum  -> 50236
+(Get-ChildItem .\lake\gold\product_metrics -Filter *.parquet -File | Measure-Object -Property Length -Sum).Sum -> 355807
+(Get-ChildItem .\lake\gold\user_metrics -Filter *.parquet -File | Measure-Object -Property Length -Sum).Sum    -> 694852
+
+Analyse des volumes:
+| Dataset         | Fichiers | Taille totale            |
+|-----------------|---------:|-------------------------:|
+| hourly_metrics  | 51       | 50 236 octets (~49 Ko)   |
+| product_metrics | 130      | 355 807 octets (~347 Ko) |
+| user_metrics    | 246      | 694 852 octets (~679 Ko) |
+| Total           | 427      | ~1,05 Mo                 |
+
+Nous avons 427 fichiers pour seulement 1 Mo de données !
+C'est un exemple intéressant du problème des Small Files dans les architectures Big Data.
+Pourtant dans un environnement de production, un trop grand nombre de petits fichiers peut entraîner :
+- davantage d'opérations de lecture ;
+- une surcharge liée à la gestion des métadonnées ;
+- une dégradation des performances lors des traitements.
+C'est pourquoi nous allons consolider d'abord ces fichiers (Lire les trois datasets Gold, Afficher leur schéma, Calculer leur nombre de lignes,Consolider les fichiers avec coalesce(1), Écrire les nouveaux fichiers dans snowflake_export).
+coalesce(1) fonction permet de réduire le nombre de partitions avant l'écriture en un seul fichier Parquet par dataset.
+
+Attention : ce choix est adapté à nos petits volumes. Sur des datasets de plusieurs centaines de Go, nous ne chercherions évidemment pas à tout concentrer dans une seule partition.
+
+
+Notre orchestration devient :
+                  AIRFLOW
+                     |
+          ┌──────────┴──────────┐
+          |                     |
+ ecommerce_pipeline    snowflake_export_pipeline
+          |                     |
+    Check Gold             Check Gold
+          |                     |
+   PostgreSQL Gold       Spark Export Job
+          |                     |
+       dbt Run            Parquet Export
+          |                     |
+      dbt Test             Export Validation
+                                |
+                            Snowflake
+
+
+dbt + Snowflake !
+
+Nous allons créer un projet dbt indépendant pour Snowflake, à côté du projet PostgreSQL existant.
+
+data-engineering-ecommerce/
+│
+├── ingestion/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+│
+├── spark/
+│   ├── jobs/
+│   └── ...
+│
+├── airflow/
+│   └── dags/
+│
+├── dbt/
+│   └── ...                  # Projet dbt actuel (PostgreSQL)
+│
+├── snowflake/
+│   ├── sql/
+│   │   ├── 01_database_setup.sql
+│   │   ├── 02_stages.sql
+│   │   ├── 03_file_formats.sql
+│   │   └── 04_load_data.sql
+│   │
+│   └── dbt_snowflake/
+│       ├── models/
+│       |   ├── sources.yml
+│       |   ├── schema.yml
+│       |   │
+│       |   ├── staging/
+│       │   |   ├── stg_hourly_metrics.sql
+│       │   |   ├── stg_product_metrics.sql
+│       │   |   └── stg_user_metrics.sql
+│       │   |
+│       |   ├── intermediate/
+│       |   │   ├── int_hourly_metrics.sql
+│       |   │   ├── int_product_metrics.sql
+│       |   │   └── int_user_metrics.sql
+│       |   │
+│       |   └── marts/
+│       |       ├── mart_hourly.sql
+│       |       ├── mart_product.sql
+│       |       └── mart_user.sql
+│       │
+│       ├── tests/
+|       |   ├── assert_unique_product_hour.sql
+|       |   ├── assert_unique_user_hour.sql
+|       |   ├── assert_non_negative_metrics.sql
+|       |   └── assert_event_counts_consistent.sql
+│       │
+│       ├── macros/
+│       ├── dbt_project.yml
+|       ├── dbt_projects_profiles.yml
+│       └── ...
+│
+├── lake/                    # Données locales, non versionnées
+│   ├── bronze/
+│   ├── silver/
+│   └── gold/
+│
+├── docker-compose.yml
+├── .gitignore
+└── README.md
+
+Nous allons utiliser dbt Projects on Snowflake. Nous allons créer un nouvel espace de travail pour notre projet avec Git workspace.
+Nous allons créer un Git workspace nommé : ecommerce_dbt_snowflake. Nous le connecterons au dépôt GitHub de notre projet data-engineering-ecommerce
+avec l'option Public repository, Snowflake pourra récupérer le code, mais pas pousser directement les modifications vers GitHub. Nous conserverons donc VS Code/Git pour nos commits et nos push.
+Nous commencerons par configurer l'adaptateur Snowflake, établir la connexion avec ECOMMERCE_DB.RAW, puis créer nos premiers modèles SQL.
+Ensuite, nous construirons les transformations progressivement, avec des tests et des commentaires dans le code.
+
+ECOMMERCE_DB
+│
+├── RAW
+│   ├── RAW_HOURLY_METRICS
+│   ├── RAW_PRODUCT_METRICS
+│   └── RAW_USER_METRICS
+│
+├── STAGING
+├── INTERMEDIATE
+└── MARTS
+
+Test de not_null sur tous les champs dans schema.yml
+Puis tests personnalisés :
+- d'unicité produit + fenêtre temporelle : un produit ne doit apparaître qu'une seule fois par fenêtre.
+- d'unicité utilisateur + fenêtre temporelle : un utilisateur ne doit apparaître qu'une seule fois par fenêtre.
+- de non-négativité des métriques : les compteurs et montants ne doivent jamais être négatifs (métriques sources + ratios calculés des trois modèles Intermediate).
+- de cohérence entre les compteurs d'événements (Parce que chaque vue, ajout au panier ou achat est un événement. Ces compteurs ne devraient donc jamais dépasser le nombre total d'événements de leur groupe.).
+
+orchestration avec airflow:
+1 créer un user et role dans snowflake dédié à airflow 
+2 Snowflake credentials: Générer une clé privée 2048-bit RSA pour etablir la connexion entre snowflake et notre env local:
+    New-Item -ItemType Directory -Force -Path "secrets\snowflake"
+    python -c "from cryptography.hazmat.primitives.asymmetric import rsa; from cryptography.hazmat.primitives import serialization; from pathlib import Path; p=Path('secrets/snowflake'); key=rsa.generate_private_key(public_exponent=65537,key_size=2048); (p/'rsa_key.p8').write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption())); (p/'rsa_key.pub').write_bytes(key.public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo)); print('RSA key pair generated successfully.')"
+3 créer le service dbt-snowflake et verifier la connexion avec Snowflake
+4 Créer un script qui va envoyer les données gold vers snowflake :
+    1. Se connecter à Snowflake.
+    2. Générer un identifiant d'exécution.
+    3. Envoyer les trois fichiers Parquet vers le stage.
+    4. Créer les trois tables temporaires.
+    5. Charger les données.
+    6. Vérifier les nombres de lignes.
+5 Créer le script du dag qui va orchestrer le processus depuis le container docker
